@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quirointegrativa - Acceso Administrador</title>
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .login-medico-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 70vh;
+            padding: 2rem;
+            background-color: var(--light-gray);
+        }
+        
+        .card-medico {
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            background: var(--white);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-top: 4px solid var(--primary);
+        }
+        
+        .medical-badge {
+            background: var(--primary);
+            color: var(--white);
+            padding: 0.8rem 1.5rem;
+            border-radius: 50px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .title {
+            margin-bottom: 1rem;
+            font-size: 1.8em;
+            font-weight: 500;
+            color: var(--secondary);
+        }
+        
+        .subtitle {
+            color: var(--dark-gray);
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .field {
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5em;
+            background-color: var(--light-gray);
+            border-radius: 6px;
+            padding: 0.8em 1em;
+            border: 1px solid var(--medium-gray);
+        }
+        
+        .input-icon {
+            height: 1em;
+            width: 1em;
+            color: var(--primary);
+        }
+        
+        .input-field {
+            background: none;
+            border: none;
+            outline: none;
+            width: 100%;
+            color: var(--black);
+            font-size: 0.9rem;
+        }
+        
+        .input-field::placeholder {
+            color: var(--dark-gray);
+        }
+        
+        .input-field:focus {
+            box-shadow: 0 0 0 2px var(--primary-light);
+        }
+        
+        .btn-medico {
+            margin: 1.5rem 0;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            padding: 1em 1.5em;
+            width: 100%;
+            background-color: var(--primary);
+            color: var(--white);
+            transition: all .3s ease-in-out;
+            cursor: pointer;
+        }
+        
+        .btn-link {
+            color: var(--primary);
+            display: block;
+            font-size: 0.8em;
+            text-decoration: none;
+            transition: color .3s ease-out;
+        }
+        
+
+        .btn-medico:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-link:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+        
+        .main-header {
+            background-color: var(--white);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .main-header .nav-link {
+            color: var(--black);
+        }
+        
+        .main-header .nav-link:hover, 
+        .main-header .nav-link.active {
+            color: var(--primary);
+        }
+        
+        .main-footer {
+            background-color: var(--secondary);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo-container">
+                <img src="assets/logo.svg" alt="Quirointegrativa Logo" class="logo">
+                <span class="slogan">Portal de acceso Administrador</span>
+            </div>
+            
+            <nav class="main-nav">
+                <ul class="nav-list">
+                    <li><a href="index.html" class="nav-link">Pacientes</a></li>
+                    <li><a href="#" class="nav-link active">Admin</a></li>
+                    <li><a href="#" class="nav-link">Soporte</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="login-medico-container">
+            <div class="card-medico">
+                <div class="medical-badge">
+                    <i class="fas fa-user-md"></i>
+                    <span>Acceso Administrador</span>
+                </div>
+                
+                <h1 class="title">Ingreso Profesional</h1>
+                <p class="subtitle">Ingrese sus credenciales para acceder al panel</p>
+                
+                <form class="login-form">
+                    <div class="field">
+                        <i class="fas fa-id-card input-icon"></i>
+                        <input autocomplete="off" id="medic_id" placeholder="Usuario" class="input-field" name="medic_id" type="text" required>
+                    </div>
+                    <div class="field">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input autocomplete="off" id="medic_pass" placeholder="Contraseña" class="input-field" name="medic_pass" type="password" required>
+                    </div>
+                    <button class="btn-medico" type="submit">
+                        <i class="fas fa-sign-in-alt"></i> Acceder al Sistema
+                    </button>
+                    <a href="#" class="btn-link">¿Problemas con el acceso?</a>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Médico -->
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-logo">
+                <img src="assets/logo-white.svg" alt="Quirointegrativa Logo" class="logo">
+                <p>Sistema de gestión de citas</p>
+            </div>
+            <div class="footer-copy">
+                <p>&copy; 2025 Quirointegrativa. Todos los derechos reservados.</p>
+                <p>Uso exclusivo para personal autorizado</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
