@@ -44,9 +44,11 @@ CREATE TABLE IF NOT EXISTS horarios_disponibles (
 -- Tabla de Citas
 CREATE TABLE IF NOT EXISTS citas (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    paciente_id UUID REFERENCES pacientes(id) ON DELETE CASCADE,
-    horario_id UUID REFERENCES horarios_disponibles(id) ON DELETE RESTRICT,
-    notas TEXT,
+    nombre VARCHAR(255) NOT NULL,
+    telefono VARCHAR(20) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    fecha DATE NOT NULL,
+    hora TIME NOT NULL,
     estado VARCHAR(20) NOT NULL CHECK (estado IN ('pendiente', 'confirmada', 'cancelada', 'completada')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -69,20 +71,19 @@ CREATE INDEX IF NOT EXISTS idx_citas_horario ON citas(horario_id);
 CREATE INDEX IF NOT EXISTS idx_horarios_fecha ON horarios_disponibles(fecha);
 CREATE INDEX IF NOT EXISTS idx_notificaciones_destinatario ON notificaciones(destinatario_id);
 
--- Crear una política de seguridad RLS (Row Level Security)
+-- Habilitar RLS
 ALTER TABLE citas ENABLE ROW LEVEL SECURITY;
 
--- Política para permitir lectura a usuarios autenticados
-CREATE POLICY "Permitir lectura a usuarios autenticados" ON citas
-    FOR SELECT
-    TO authenticated
-    USING (true);
+-- Políticas de RLS
+CREATE POLICY "Permitir lectura a usuarios autenticados"
+ON citas FOR SELECT
+TO authenticated
+USING (true);
 
--- Política para permitir inserción a cualquier usuario
-CREATE POLICY "Permitir inserción a cualquier usuario" ON citas
-    FOR INSERT
-    TO anon
-    WITH CHECK (true);
+CREATE POLICY "Permitir inserción a usuarios anónimos"
+ON citas FOR INSERT
+TO anon
+WITH CHECK (true);
 
 -- Función para verificar disponibilidad de horario
 CREATE OR REPLACE FUNCTION verificar_disponibilidad(

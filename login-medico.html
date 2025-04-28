@@ -110,7 +110,6 @@
             transition: color .3s ease-out;
         }
         
-
         .btn-medico:hover {
             background-color: var(--primary-dark);
             transform: translateY(-2px);
@@ -139,14 +138,48 @@
         .main-footer {
             background-color: var(--secondary);
         }
+
+        /* Estilos para los mensajes toast */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background-color: #ff4444;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        }
+
+        .toast.mostrar {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toast-success {
+            background-color: #4CAF50;
+        }
+
+        .toast i {
+            font-size: 1.2rem;
+        }
     </style>
 </head>
 <body>
-
     <header class="encabezado-principal">
         <div class="contenedor-encabezado">
             <div class="contenedor-logo">
-                <img src="assets/logo.svg" alt="Quirointegrativa" class="logo">
+                <img src="assets/logo.png" alt="Quirointegrativa" class="logo">
             </div>
             
             <nav class="navegacion-principal">
@@ -195,16 +228,17 @@
     <footer class="main-footer">
         <div class="footer-container">
             <div class="footer-logo">
-                <img src="assets/logo-white.svg" alt="Quirointegrativa Logo" class="logo">
+                <img src="assets/logo.png" alt="Quirointegrativa Logo" class="logo">
                 <p>Sistema de gestión de citas</p>
-            </div>
-            <div class="footer-copy">
-                <p>&copy; 2025 Quirointegrativa. Todos los derechos reservados.</p>
-                <p>Uso exclusivo para personal autorizado</p>
             </div>
         </div>
     </footer>
 
-    <script src="js/main.js"></script>
+    <!-- Contenedor para mensajes toast -->
+    <div id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/login-medico.js"></script>
 </body>
 </html>
