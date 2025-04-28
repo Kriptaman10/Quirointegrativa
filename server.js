@@ -2,15 +2,14 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
 const port = 3000;
 
 // Configuración de Supabase
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseUrl = 'https://ivneinajrywdljevjgjx.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY; // Necesitaremos la anon key
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Middleware
@@ -23,6 +22,22 @@ app.post('/api/citas', async (req, res) => {
     const { nombre, telefono, email, fecha, hora } = req.body;
     
     try {
+        // Primero verificamos disponibilidad
+        const { data: disponibilidad, error: errorDisponibilidad } = await supabase
+            .rpc('verificar_disponibilidad', {
+                fecha_cita: fecha,
+                hora_cita: hora
+            });
+
+        if (errorDisponibilidad) throw new Error('Error al verificar disponibilidad');
+        
+        if (!disponibilidad) {
+            return res.status(400).json({
+                error: 'El horario seleccionado ya no está disponible'
+            });
+        }
+
+        // Si está disponible, guardamos la cita
         const { data, error } = await supabase
             .from('citas')
             .insert([
@@ -45,7 +60,9 @@ app.post('/api/citas', async (req, res) => {
         });
     } catch (error) {
         console.error('Error al guardar la cita:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+            error: error.message || 'Error al agendar la cita'
+        });
     }
 });
 
@@ -63,7 +80,31 @@ app.get('/api/citas', async (req, res) => {
         res.json(data);
     } catch (error) {
         console.error('Error al obtener las citas:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+            error: error.message || 'Error al obtener las citas'
+        });
+    }
+});
+
+// Ruta para verificar disponibilidad
+app.get('/api/disponibilidad', async (req, res) => {
+    const { fecha, hora } = req.query;
+    
+    try {
+        const { data, error } = await supabase
+            .rpc('verificar_disponibilidad', {
+                fecha_cita: fecha,
+                hora_cita: hora
+            });
+
+        if (error) throw error;
+
+        res.json({ disponible: data });
+    } catch (error) {
+        console.error('Error al verificar disponibilidad:', error);
+        res.status(500).json({ 
+            error: error.message || 'Error al verificar disponibilidad'
+        });
     }
 });
 

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Médico - Quirointegrativa</title>
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="css/panel-medico.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href='https://cdn.jsdelivr.net/npm/@fullcalendar/core/main.css' rel='stylesheet' />
+    <link href='https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid/main.css' rel='stylesheet' />
+    <link href='https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid/main.css' rel='stylesheet' />
+</head>
+<body>
+    <header class="encabezado-principal">
+        <div class="contenedor-encabezado">
+            <div class="contenedor-logo">
+                <img src="/assets/logo.png" alt="Quirointegrativa" class="logo">
+            </div>
+            
+            <nav class="navegacion-principal">
+                <div class="user-info">
+                    <span id="nombre-medico"></span>
+                    <button id="btn-logout" class="btn-action">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="panel-container">
+        <aside class="sidebar">
+            <nav>
+                <div class="nav-item active" data-tab="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" data-tab="appointments">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Citas</span>
+                </div>
+                <div class="nav-item" data-tab="schedule">
+                    <i class="fas fa-clock"></i>
+                    <span>Horarios</span>
+                </div>
+                <div class="nav-item" data-tab="patients">
+                    <i class="fas fa-users"></i>
+                    <span>Pacientes</span>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="main-panel">
+            <!-- Dashboard -->
+            <div class="tab-content active" id="dashboard">
+                <section class="welcome-section">
+                    <h1>Bienvenido, Dr. <span id="welcome-name"></span></h1>
+                    <p>Panel de administración de citas y horarios</p>
+                </section>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Citas Pendientes</h3>
+                        <p id="pending-count">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Citas Hoy</h3>
+                        <p id="today-count">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Pacientes</h3>
+                        <p id="patients-count">0</p>
+                    </div>
+                </div>
+
+                <section class="appointments-section">
+                    <h2>Próximas Citas</h2>
+                    <div id="upcoming-appointments"></div>
+                </section>
+            </div>
+
+            <!-- Citas -->
+            <div class="tab-content" id="appointments">
+                <h2>Gestión de Citas</h2>
+                <div class="appointments-list">
+                    <!-- Las citas se cargarán dinámicamente aquí -->
+                </div>
+            </div>
+
+            <!-- Horarios -->
+            <div class="tab-content" id="schedule">
+                <h2>Gestión de Horarios</h2>
+                <div class="calendar-section">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+
+            <!-- Pacientes -->
+            <div class="tab-content" id="patients">
+                <h2>Lista de Pacientes</h2>
+                <div class="patients-list">
+                    <!-- La lista de pacientes se cargará dinámicamente aquí -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/locales/es.global.min.js'></script>
+    <script src="js/panel-medico.js"></script>
+</body>
+</html> 
