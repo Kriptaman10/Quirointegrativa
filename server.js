@@ -21,24 +21,40 @@ app.use(express.static('.')); // Servir archivos estáticos
 app.post('/api/citas', async (req, res) => {
     const { nombre, telefono, email, fecha, hora } = req.body;
     
-    try {
-        // Primero verificamos disponibilidad
-        const { data: disponibilidad, error: errorDisponibilidad } = await supabase
-            .rpc('verificar_disponibilidad', {
-                fecha_cita: fecha,
-                hora_cita: hora
-            });
+    console.log('Intentando crear cita:', { nombre, telefono, email, fecha, hora });
 
-        if (errorDisponibilidad) throw new Error('Error al verificar disponibilidad');
-        
-        if (!disponibilidad) {
-            return res.status(400).json({
+    if (!nombre || !telefono || !email || !fecha || !hora) {
+        console.error('Faltan campos requeridos');
+        return res.status(400).json({
+            error: 'Todos los campos son requeridos'
+        });
+    }
+
+    try {
+        // Primero verificamos la disponibilidad dentro de la misma transacción
+        const { data: citasExistentes, error: errorVerificacion } = await supabase
+            .from('citas')
+            .select('id')
+            .eq('fecha', fecha)
+            .eq('hora', hora)
+            .in('estado', ['confirmada', 'pendiente']);
+
+        if (errorVerificacion) {
+            console.error('Error al verificar disponibilidad:', errorVerificacion);
+            throw new Error('Error al verificar disponibilidad');
+        }
+
+        // Si ya existe una cita, rechazamos inmediatamente
+        if (citasExistentes && citasExistentes.length > 0) {
+            console.log('Horario ocupado, rechazando cita:', { fecha, hora });
+            return res.status(409).json({
                 error: 'El horario seleccionado ya no está disponible'
             });
         }
 
-        // Si está disponible, guardamos la cita
-        const { data, error } = await supabase
+        // Si no hay citas existentes, intentamos insertar usando RLS
+        console.log('Horario disponible, intentando insertar cita');
+        const { data: nuevaCita, error: errorInsercion } = await supabase
             .from('citas')
             .insert([
                 {
@@ -50,16 +66,27 @@ app.post('/api/citas', async (req, res) => {
                     estado: 'pendiente'
                 }
             ])
-            .select();
+            .select()
+            .single();
 
-        if (error) throw error;
+        if (errorInsercion) {
+            console.error('Error al insertar cita:', errorInsercion);
+            // Si el error es por duplicado (otra cita se creó al mismo tiempo)
+            if (errorInsercion.code === '23505') {
+                return res.status(409).json({
+                    error: 'El horario seleccionado ya no está disponible'
+                });
+            }
+            throw errorInsercion;
+        }
 
+        console.log('Cita creada exitosamente:', nuevaCita.id);
         res.json({
-            id: data[0].id,
+            id: nuevaCita.id,
             message: 'Cita agendada exitosamente'
         });
     } catch (error) {
-        console.error('Error al guardar la cita:', error);
+        console.error('Error al procesar la cita:', error);
         res.status(500).json({ 
             error: error.message || 'Error al agendar la cita'
         });
@@ -90,16 +117,32 @@ app.get('/api/citas', async (req, res) => {
 app.get('/api/disponibilidad', async (req, res) => {
     const { fecha, hora } = req.query;
     
+    console.log('Verificando disponibilidad para:', { fecha, hora });
+    
+    if (!fecha || !hora) {
+        console.error('Faltan parámetros requeridos');
+        return res.status(400).json({ 
+            error: 'Se requieren fecha y hora para verificar disponibilidad'
+        });
+    }
+
     try {
-        const { data, error } = await supabase
-            .rpc('verificar_disponibilidad', {
-                fecha_cita: fecha,
-                hora_cita: hora
-            });
+        const { data: citasExistentes, error } = await supabase
+            .from('citas')
+            .select('id')
+            .eq('fecha', fecha)
+            .eq('hora', hora)
+            .in('estado', ['confirmada', 'pendiente']);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error al consultar disponibilidad:', error);
+            throw error;
+        }
 
-        res.json({ disponible: data });
+        const disponible = !citasExistentes || citasExistentes.length === 0;
+        console.log('Resultado de verificación:', { fecha, hora, disponible, citasCount: citasExistentes?.length });
+        
+        res.json({ disponible });
     } catch (error) {
         console.error('Error al verificar disponibilidad:', error);
         res.status(500).json({ 

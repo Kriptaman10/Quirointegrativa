@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quirointegrativa - Información</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logo.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="main.css">
+    <style>
+        .seccion-info {
+            padding: 6rem 0;
+            position: relative;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .seccion-info::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('assets/consulta.png') center/cover no-repeat;
+            opacity: 0.3;
+            z-index: 1;
+        }
+
+        .contenedor-info {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .encabezado-info {
+            text-align: center;
+            margin-bottom: 4rem;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            animation: fadeInDown 1s ease;
+        }
+
+        .encabezado-info h1 {
+            font-size: 3rem;
+            color: var(--secondary);
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .grid-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+            align-items: start;
+        }
+
+        .tarjeta-info {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 1s ease;
+        }
+
+        .tarjeta-info:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .tarjeta-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        }
+
+        .titulo-seccion {
+            font-size: 2.2rem;
+            color: var(--secondary);
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .titulo-seccion i {
+            font-size: 2rem;
+            color: var(--primary);
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .texto-info {
+            color: var(--dark-gray);
+            line-height: 1.8;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            position: relative;
+            padding-left: 1rem;
+            border-left: 3px solid var(--primary-light);
+        }
+
+        .lista-caracteristicas {
+            list-style: none;
+            padding: 0;
+        }
+
+        .item-caracteristica {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            padding: 1.2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .item-caracteristica i {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .item-caracteristica:hover {
+            transform: translateX(10px);
+            background: linear-gradient(135deg, var(--primary-light) 0%, white 150%);
+            color: var(--secondary);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-info {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .tarjeta-info {
+                padding: 2rem;
+            }
+
+            .titulo-seccion {
+                font-size: 1.8rem;
+            }
+
+            .texto-info {
+                font-size: 1rem;
+            }
+
+            .encabezado-info h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="encabezado-principal">
+        <div class="contenedor-encabezado">
+            <div class="contenedor-logo">
+                <a href="index.html">
+                    <img src="assets/logo.png" alt="Quirointegrativa" class="logo">
+                </a>
+            </div>
+            
+            <nav class="navegacion-principal">
+                <button class="boton-menu" aria-label="Abrir menú">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <ul class="lista-navegacion">
+                    <li><a href="index.html" class="enlace-navegacion">Inicio</a></li>
+                    <li><a href="login-medico.html" class="enlace-navegacion">Admin</a></li>
+                    <li><a href="informacion.html" class="enlace-navegacion activo">Información</a></li>
+                    <li><a href="contacto.html" class="enlace-navegacion">Contacto</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="seccion-info">
+            <div class="contenedor-info">
+                <div class="encabezado-info">
+                    <h1>Bienvenido a Quirointegrativa</h1>
+                </div>
+                
+                <div class="grid-info">
+                    <div class="tarjeta-info">
+                        <h2 class="titulo-seccion">
+                            <i class="fas fa-eye"></i>
+                            Visión
+                        </h2>
+                        <p class="texto-info">Brindar una atención quiropráctica de alta calidad, especializada en dolor agudo y crónico a partir de una práctica clínica integrativa.</p>
+
+                        <h2 class="titulo-seccion">
+                            <i class="fas fa-bullseye"></i>
+                            Misión
+                        </h2>
+                        <p class="texto-info">Ser una excelente alternativa Quiropráctica en la recuperación de la funcionalidad y calidad de vida de personas con dolor agudo y crónico en la Región Metropolitana basado en:</p>
+                        
+                        <ul class="lista-caracteristicas">
+                            <li class="item-caracteristica">
+                                <i class="fas fa-star"></i>
+                                Alta Calidad Técnica
+                            </li>
+                            <li class="item-caracteristica">
+                                <i class="fas fa-user-tie"></i>
+                                Profesionalismo
+                            </li>
+                            <li class="item-caracteristica">
+                                <i class="fas fa-heart"></i>
+                                Atención personalizada
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="tarjeta-info">
+                        <h2 class="titulo-seccion">
+                            <i class="fas fa-book-open"></i>
+                            Nuestra Filosofía
+                        </h2>
+                        <p class="texto-info">Luego de explorar diversas alternativas, en 2017 nace Quirointegrativa con el propósito de diseñar una terapéutica que combinara la mejor práctica quiropráctica con la medicina biorreguladora en el marco de resolver patologías neuro músculo esqueléticas agudas y crónicas de manera integrada y más efectiva.</p>
+                        
+                        <p class="texto-info">En 30 años de experiencia clínica la filosofía quirointegrativa se resume en que el mejor terapeuta es la propia persona, aportando conocimientos y herramientas a sus pacientes para lograr los mejores resultados y un correcto automanejo una vez dado de alta.</p>
+                        
+                        <p class="texto-info">Con el sistema quirointegrativo se ha tenido éxito en desarrollar un abordaje ecléctico a partir de una propuesta biomecánica integrada con el sistema inmune, la psicología y las emociones, que permita recuperar los equilibrios sobre condiciones que se encuentran ancladas en diversos niveles orgánicos y no orgánicos que perpetúan el dolor y la disfunción.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="pie-pagina">
+        <div class="contenedor-pie">
+            <div class="logo-pie">
+                <img src="assets/logo.png" alt="Quirointegrativa" class="logo">
+            </div>
+            <div class="enlaces-pie">
+                <a href="#">Términos y condiciones</a>
+                <a href="#">Política de privacidad</a>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2025 Quirointegrativa. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html> 

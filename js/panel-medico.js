@@ -1,7 +1,9 @@
 // Configuración de Supabase
-const supabaseUrl = 'https://ivneinajrywdljevjgjx.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bmVpbmFqcnl3ZGxqZXZqZ2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0ODA5NDIsImV4cCI6MjA2MTA1Njk0Mn0.ySUivP0cdQ8_c1y7BE7uxEH_F3fKawxtuyi0IiMfLwQ'
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+const supabaseConfig = {
+    url: 'https://ivneinajrywdljevjgjx.supabase.co',
+    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bmVpbmFqcnl3ZGxqZXZqZ2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0ODA5NDIsImV4cCI6MjA2MTA1Njk0Mn0.ySUivP0cdQ8_c1y7BE7uxEH_F3fKawxtuyi0IiMfLwQ'
+}
+const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key)
 
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar si el usuario está logueado
