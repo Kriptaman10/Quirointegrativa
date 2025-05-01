@@ -24,7 +24,9 @@
     <header class="encabezado-principal">
         <div class="contenedor-encabezado">
             <div class="contenedor-logo">
-                <img src="/assets/logo.png" alt="Quirointegrativa" class="logo">
+                <a href="index.html">
+                    <img src="assets/logo.png" alt="Quirointegrativa" class="logo">
+                </a>
             </div>
             
             <nav class="navegacion-principal">
@@ -32,9 +34,10 @@
                     <i class="fas fa-bars"></i>
                 </button>
                 <ul class="lista-navegacion">
-                    <li><a href="#" class="enlace-navegacion activo">Pacientes</a></li>
-                    <li><a href="login-medico.html" class="enlace-navegacion">Médicos</a></li>
-                    <li><a href="#" class="enlace-navegacion">Contacto</a></li>
+                    <li><a href="index.html" class="enlace-navegacion activo">Inicio</a></li>
+                    <li><a href="login-medico.html" class="enlace-navegacion">Admin</a></li>
+                    <li><a href="informacion.html" class="enlace-navegacion">Información</a></li>
+                    <li><a href="contacto.html" class="enlace-navegacion">Contacto</a></li>
                 </ul>
             </nav>
         </div>
@@ -42,9 +45,6 @@
 
     <!-- Contenido Principal -->
     <main class="contenido-principal">
-        <!-- Componente de Prueba de Conexión -->
-        <!-- <div id="prueba-conexion"></div> -->
-
         <!-- Sección Hero -->
         <section class="hero">
             <div class="contenido-hero">
@@ -58,15 +58,15 @@
         </section>
 
         <!-- Formulario de Agendamiento -->
-        <section id="agendar" class="seccion-citas">
-            <div class="contenedor">
-                <h2 class="titulo-seccion">Agenda tu cita médica</h2>
-                <p class="descripcion-seccion">Selecciona la fecha y hora que prefieras para tu consulta</p>
+        <section id="agendar" class="appointment-section">
+            <div class="container">
+                <h2 class="section-title">Agenda tu cita médica</h2>
+                <p class="section-description">Selecciona la fecha y hora que prefieras para tu consulta</p>
                 
                 <!-- Calendario -->
-                <div class="seccion-calendario">
+                <div class="calendar-section">
                     <div id="calendario"></div>
-                    <div id="slot-seleccionado" class="fecha-hora-seleccionada" style="display: none;">
+                    <div id="slot-seleccionado" class="selected-datetime" style="display: none;">
                         Fecha y hora seleccionada: <span></span>
                     </div>
                 </div>
@@ -125,7 +125,7 @@
                 <div class="tarjeta-informacion">
                     <i class="fas fa-phone-volume"></i>
                     <h3>Contacto</h3>
-                    <p>+56 2 2345 6789</p>
+                    <p>+(56) 961590395</p>
                     <p>info@quirointegrativa.cl</p>
                 </div>
             </div>
@@ -136,12 +136,13 @@
     <footer class="pie-pagina">
         <div class="contenedor-pie">
             <div class="logo-pie">
-                <img src="/assets/logo.png" alt="Quirointegrativa" class="logo">
+                <a href="index.html">
+                    <img src="assets/logo.png" alt="Quirointegrativa" class="logo">
+                </a>
             </div>
             <div class="enlaces-pie">
                 <a href="#">Términos y condiciones</a>
                 <a href="#">Política de privacidad</a>
-                <a href="#">Soporte técnico</a>
             </div>
             <div class="copyright">
                 <p>&copy; 2025 Quirointegrativa. Todos los derechos reservados.</p>
@@ -153,7 +154,7 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/locales/es.global.min.js'></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/calendario.js"></script>
+    <script src="js/main.js"></script>
     <script src="js/formulario-citas.js"></script>
 
     <!-- Toast de notificación -->
