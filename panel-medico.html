@@ -48,6 +48,10 @@
                     <i class="fas fa-users"></i>
                     <span>Pacientes</span>
                 </div>
+                <div class="nav-item" data-tab="reviews">
+                    <i class="fas fa-star"></i>
+                    <span>Valoraciones</span>
+                </div>
             </nav>
         </aside>
 
@@ -101,6 +105,28 @@
                 <h2>Lista de Pacientes</h2>
                 <div class="patients-list">
                     <!-- La lista de pacientes se cargará dinámicamente aquí -->
+                </div>
+            </div>
+
+            <!-- Valoraciones -->
+            <div class="tab-content" id="reviews">
+                <h2>Gestión de Valoraciones</h2>
+                <div class="reviews-stats">
+                    <div class="stat-card">
+                        <h3>Valoración Promedio</h3>
+                        <p id="average-rating">0.0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Valoraciones</h3>
+                        <p id="total-reviews">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Valoraciones Pendientes</h3>
+                        <p id="pending-reviews">0</p>
+                    </div>
+                </div>
+                <div class="reviews-list">
+                    <!-- La lista de valoraciones se cargará dinámicamente aquí -->
                 </div>
             </div>
         </main>

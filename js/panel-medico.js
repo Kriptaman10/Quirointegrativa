@@ -55,6 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'patients':
                     cargarPacientes()
                     break
+                case 'reviews':
+                    cargarValoraciones()
+                    break
             }
         })
     })
@@ -312,6 +315,118 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error al cargar los pacientes:', error)
         }
     }
+
+    // Función para cargar las valoraciones
+    async function cargarValoraciones() {
+        try {
+            // Obtener todas las valoraciones
+            const { data: valoraciones, error } = await supabase
+                .from('valoraciones')
+                .select('*')
+                .order('fecha_creacion', { ascending: false })
+
+            if (error) throw error
+
+            // Calcular estadísticas
+            const totalValoraciones = valoraciones.length
+            const valoracionesPendientes = valoraciones.filter(v => v.estado === 'pendiente').length
+            const promedio = valoraciones.reduce((acc, v) => acc + v.estrellas, 0) / totalValoraciones || 0
+
+            // Actualizar estadísticas
+            document.getElementById('total-reviews').textContent = totalValoraciones
+            document.getElementById('pending-reviews').textContent = valoracionesPendientes
+            document.getElementById('average-rating').textContent = promedio.toFixed(1)
+
+            // Renderizar lista de valoraciones
+            const reviewsList = document.querySelector('.reviews-list')
+            reviewsList.innerHTML = valoraciones.length
+                ? valoraciones.map(valoracion => {
+                    // Obtener iniciales para el avatar
+                    const iniciales = valoracion.nombre
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2)
+
+                    // Crear estrellas
+                    const estrellas = '★'.repeat(valoracion.estrellas) + '☆'.repeat(5 - valoracion.estrellas)
+
+                    return `
+                        <div class="review-item">
+                            <div class="review-header">
+                                <div class="review-user">
+                                    <div class="review-avatar">${iniciales}</div>
+                                    <div class="review-info">
+                                        <h3>${valoracion.nombre}</h3>
+                                        <small>${valoracion.email}</small>
+                                    </div>
+                                </div>
+                                <div class="review-stars">${estrellas}</div>
+                            </div>
+                            <div class="review-content">
+                                ${valoracion.comentario}
+                            </div>
+                            <div class="review-actions">
+                                <span class="review-status status-${valoracion.estado}">
+                                    ${valoracion.estado}
+                                </span>
+                                ${valoracion.estado === 'pendiente' ? `
+                                    <button class="btn-review btn-approve" onclick="aprobarValoracion('${valoracion.id}')">
+                                        <i class="fas fa-check"></i> Aprobar
+                                    </button>
+                                    <button class="btn-review btn-reject" onclick="rechazarValoracion('${valoracion.id}')">
+                                        <i class="fas fa-times"></i> Rechazar
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `
+                }).join('')
+                : '<p>No hay valoraciones registradas</p>'
+
+        } catch (error) {
+            console.error('Error al cargar las valoraciones:', error)
+        }
+    }
+
+    // Función para aprobar una valoración
+    async function aprobarValoracion(id) {
+        try {
+            const { error } = await supabase
+                .from('valoraciones')
+                .update({ estado: 'aprobado' })
+                .eq('id', id)
+
+            if (error) throw error
+
+            // Recargar las valoraciones
+            cargarValoraciones()
+        } catch (error) {
+            console.error('Error al aprobar la valoración:', error)
+        }
+    }
+
+    // Función para rechazar una valoración
+    async function rechazarValoracion(id) {
+        try {
+            const { error } = await supabase
+                .from('valoraciones')
+                .update({ estado: 'rechazado' })
+                .eq('id', id)
+
+            if (error) throw error
+
+            // Recargar las valoraciones
+            cargarValoraciones()
+        } catch (error) {
+            console.error('Error al rechazar la valoración:', error)
+        }
+    }
+
+    // Hacer las funciones disponibles globalmente
+    window.aprobarValoracion = aprobarValoracion
+    window.rechazarValoracion = rechazarValoracion
 
     // Cargar el dashboard inicialmente
     cargarDashboard()
