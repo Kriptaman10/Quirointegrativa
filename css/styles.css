@@ -198,4 +198,23 @@ button:hover {
 
 .toast.mostrar {
     opacity: 1;
+}
+
+.mensaje-error {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.mensaje-error:not(:empty) {
+    display: block;
+}
+
+input:invalid {
+    border-color: #dc3545;
+}
+
+input:valid {
+    border-color: #28a745;
 } 

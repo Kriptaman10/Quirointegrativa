@@ -1106,3 +1106,29 @@ body {
         opacity: 1;
     }
 }
+
+.mensaje-error {
+    color: #dc3545;
+    font-size: 1rem;
+    font-weight: bold;
+    margin-top: 0.25rem;
+    display: none;
+    padding-left: 0.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+}
+
+.mensaje-error:not(:empty) {
+    display: flex;
+}
+
+.mensaje-error::before {
+    content: '';
+}
+.mensaje-error:not(:empty)::before {
+    content: '\26A0'; /* ⚠️ */
+    font-size: 1.1em;
+    margin-right: 0.3em;
+    color: #dc3545;
+}
