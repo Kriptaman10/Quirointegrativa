@@ -3,9 +3,19 @@ const supabaseConfig = {
     url: 'https://ivneinajrywdljevjgjx.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bmVpbmFqcnl3ZGxqZXZqZ2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0ODA5NDIsImV4cCI6MjA2MTA1Njk0Mn0.ySUivP0cdQ8_c1y7BE7uxEH_F3fKawxtuyi0IiMfLwQ'
 }
-const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key)
+const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
+
+// Configuración de EmailJS
+const EMAILJS_CONFIG = {
+    serviceId: 'service_b0m35xv',
+    templateId: 'template_1mjm41s',
+    publicKey: 'fBdM064XPXrY_vm_n'
+};
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Inicializar EmailJS
+    emailjs.init(EMAILJS_CONFIG.publicKey);
+
     // Verificar si el usuario está logueado
     const medicoLogueado = localStorage.getItem('medicoLogueado')
     if (!medicoLogueado) {
@@ -133,9 +143,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const appointmentsList = document.querySelector('.appointments-list')
             appointmentsList.innerHTML = citas?.length
-                ? `<ul class="appointment-list">
+                ? `<div class="appointment-list">
                     ${citas.map(cita => `
-                        <li class="appointment-item" data-id="${cita.id}">
+                        <div class="cita" data-id="${cita.id}" data-nombre="${cita.nombre}" data-email="${cita.email}" data-fecha="${cita.fecha}" data-hora="${cita.hora}">
                             <div>
                                 <strong>${cita.nombre}</strong><br>
                                 ${cita.fecha} - ${cita.hora}<br>
@@ -144,17 +154,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="appointment-actions">
                                 <span class="status-badge status-${cita.estado}">${cita.estado}</span>
                                 ${cita.estado === 'pendiente' ? `
-                                    <button class="btn-action btn-confirm" onclick="confirmarCita('${cita.id}')">
+                                    <button class="btn-action btn-confirmar">
                                         <i class="fas fa-check"></i> Confirmar
                                     </button>
-                                    <button class="btn-action btn-cancel" onclick="cancelarCita('${cita.id}')">
+                                    <button class="btn-action btn-cancelar">
                                         <i class="fas fa-times"></i> Cancelar
                                     </button>
                                 ` : ''}
                             </div>
-                        </li>
+                        </div>
                     `).join('')}
-                </ul>`
+                </div>`
                 : '<p>No hay citas registradas</p>'
 
         } catch (error) {
@@ -428,43 +438,173 @@ document.addEventListener('DOMContentLoaded', () => {
     window.aprobarValoracion = aprobarValoracion
     window.rechazarValoracion = rechazarValoracion
 
+    // Event delegation for appointment actions
+    const appointmentsListContainer = document.querySelector('.appointments-list'); 
+
+    if (appointmentsListContainer) {
+        appointmentsListContainer.addEventListener('click', function(event) {
+            const clickedButton = event.target.closest('button');
+            if (!clickedButton) return; 
+
+            const citaElement = clickedButton.closest('.cita');
+            if (!citaElement) return; 
+
+            const citaId = citaElement.dataset.id;
+            const nombrePaciente = citaElement.dataset.nombre;
+            const emailPaciente = citaElement.dataset.email;
+            const fechaCita = citaElement.dataset.fecha;
+            const horaCita = citaElement.dataset.hora;
+
+            // Basic validation for data attributes
+            if (!citaId || !nombrePaciente || !emailPaciente || !fechaCita || !horaCita) {
+                console.error('Missing data attributes on .cita element:', citaElement.dataset);
+                alert('Error: No se pudieron obtener todos los datos de la cita. Intente recargar.');
+                return;
+            }
+
+            if (clickedButton.classList.contains('btn-confirmar')) {
+                if (window.confirmarCita) {
+                    window.confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, horaCita, clickedButton);
+                } else {
+                    console.error('confirmarCita function not found on window object.');
+                }
+            } else if (clickedButton.classList.contains('btn-cancelar')) {
+                if (window.cancelarCita) {
+                    window.cancelarCita(citaId, citaElement);
+                } else {
+                    console.error('cancelarCita function not found on window object.');
+                }
+            }
+        });
+    } else {
+        console.error("Appointment list container '.appointments-list' not found at DOMContentLoaded. This might be an issue if it's dynamically added later without re-attaching listeners or if the selector is incorrect.");
+    }
+
     // Cargar el dashboard inicialmente
     cargarDashboard()
 })
 
 // Funciones globales para manejar citas
-async function confirmarCita(citaId) {
+async function confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, horaCita, confirmarButtonElement) {
+    const originalButtonText = confirmarButtonElement.innerHTML;
+    const citaElement = confirmarButtonElement.closest('.cita');
+    const cancelarButtonElement = citaElement.querySelector('.btn-cancelar');
+    const statusBadge = citaElement.querySelector('.status-badge');
+
+    confirmarButtonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Confirmando...';
+    confirmarButtonElement.disabled = true;
+    if (cancelarButtonElement) {
+        cancelarButtonElement.disabled = true;
+    }
+
     try {
-        const { data, error } = await supabase
+        // 1. Update Supabase
+        const { error: supabaseError } = await supabase
             .from('citas')
             .update({ estado: 'confirmada' })
-            .eq('id', citaId)
-            .select()
+            .eq('id', citaId);
 
-        if (error) throw error
+        if (supabaseError) {
+            // Construct a more informative error message for Supabase errors
+            throw new Error(`Error de Supabase al actualizar la cita: ${supabaseError.message} (Código: ${supabaseError.code})`);
+        }
 
-        // Recargar la lista de citas
-        cargarCitas()
+        // 2. Send Email
+        try {
+            const templateParams = {
+                to_name: nombrePaciente,
+                to_email: emailPaciente,
+                appointment_date: fechaCita,
+                appointment_time: horaCita,
+            };
+            await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+        } catch (emailError) {
+            console.error('Error al enviar el correo de confirmación:', emailError);
+            alert('Cita confirmada en la base de datos, pero falló el envío del correo de confirmación. Por favor, notifique al paciente manualmente.');
+            // Continue to update UI as confirmed, as DB was successful
+        }
+
+        // 3. Update UI to 'Confirmada'
+        if (statusBadge) {
+            statusBadge.textContent = 'confirmada';
+            statusBadge.className = 'status-badge status-confirmada';
+        }
+        confirmarButtonElement.innerHTML = '<i class="fas fa-check"></i> Confirmada';
+        // confirmarButtonElement is already disabled.
+        if (cancelarButtonElement) {
+            cancelarButtonElement.style.display = 'none'; // Hide cancel button
+        }
+
     } catch (error) {
-        console.error('Error al confirmar la cita:', error)
-        alert('Error al confirmar la cita')
+        console.error('Error al confirmar la cita:', error.message);
+        // More specific alert based on where the error originated
+        if (error.message.includes('Supabase')) {
+            alert(`Error al actualizar la cita en la base de datos: ${error.message}`);
+        } else {
+            alert(`Error inesperado al confirmar la cita: ${error.message}`);
+        }
+        
+
+        // Revert button state only if it wasn't changed to "Confirmada"
+        // This check ensures that if email sending fails *after* DB success, buttons remain in "Confirmada" state.
+        if (confirmarButtonElement.innerHTML.includes('Confirmando...')) {
+             confirmarButtonElement.innerHTML = originalButtonText;
+             confirmarButtonElement.disabled = false;
+             if (cancelarButtonElement) {
+                 cancelarButtonElement.disabled = false;
+             }
+        }
     }
 }
+window.confirmarCita = confirmarCita; // Ensure it's globally accessible
 
-async function cancelarCita(citaId) {
-    try {
-        const { data, error } = await supabase
-            .from('citas')
-            .update({ estado: 'cancelada' })
-            .eq('id', citaId)
-            .select()
 
-        if (error) throw error
+async function cancelarCita(citaId, citaElement) {
+    const cancelarButtonElement = citaElement.querySelector('.btn-cancelar');
+    // It's possible the confirmar button doesn't exist if the appointment was already confirmed and then an attempt to cancel happens through console,
+    // or if the HTML structure changes. So, check if it exists.
+    const confirmarButtonElement = citaElement.querySelector('.btn-confirmar');
 
-        // Recargar la lista de citas
-        cargarCitas()
-    } catch (error) {
-        console.error('Error al cancelar la cita:', error)
-        alert('Error al cancelar la cita')
+    let originalButtonText = '';
+    if (cancelarButtonElement) {
+        originalButtonText = cancelarButtonElement.innerHTML;
+        cancelarButtonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
+        cancelarButtonElement.disabled = true;
     }
-} 
+
+    if (confirmarButtonElement) {
+        confirmarButtonElement.disabled = true;
+    }
+
+    try {
+        // 1. Delete from Supabase
+        const { error: supabaseError } = await supabase
+            .from('citas')
+            .delete()
+            .eq('id', citaId);
+
+        if (supabaseError) {
+            throw new Error(`Error de Supabase: ${supabaseError.message}`);
+        }
+
+        // 2. Update UI
+        citaElement.remove();
+        alert('Cita cancelada exitosamente.'); // Optional success message
+
+        // No need to call cargarCitas()
+
+    } catch (error) {
+        console.error('Error al cancelar la cita:', error.message);
+        alert(`Error al cancelar la cita: ${error.message.includes('Supabase') ? 'Fallo al eliminar de la base de datos.' : 'Error inesperado.'}`);
+
+        // Revert button states if the element still exists and buttons are present
+        if (cancelarButtonElement && document.body.contains(citaElement)) {
+            cancelarButtonElement.innerHTML = originalButtonText;
+            cancelarButtonElement.disabled = false;
+        }
+        if (confirmarButtonElement && document.body.contains(citaElement)) {
+            confirmarButtonElement.disabled = false;
+        }
+    }
+}
+window.cancelarCita = cancelarCita; // Ensure it's globally accessible
