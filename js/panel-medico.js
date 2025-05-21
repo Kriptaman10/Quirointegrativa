@@ -512,11 +512,14 @@ async function confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, h
         // 2. Send Email
         try {
             const templateParams = {
-                to_name: nombrePaciente,
-                to_email: emailPaciente,
-                appointment_date: fechaCita,
-                appointment_time: horaCita,
+                email: emailPaciente,
+                nombre: nombrePaciente,
+                fecha: fechaCita,
+                hora: horaCita
             };
+            
+            console.log('Enviando correo con parámetros:', templateParams);
+            
             await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
         } catch (emailError) {
             console.error('Error al enviar el correo de confirmación:', emailError);
