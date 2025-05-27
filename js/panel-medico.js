@@ -192,29 +192,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 const confirmacion = confirm(`¿Desea marcar este horario como disponible?\nFecha: ${info.startStr}\nHora: ${info.start.toLocaleTimeString()}`)
                 if (confirmacion) {
                     try {
+                        // Obtener hora en formato 24 horas HH:MM:SS
+                        let hora = '';
+                        if (info.start instanceof Date) {
+                            hora = info.start.toTimeString().slice(0, 8);
+                        } else {
+                            hora = convertirAFormato24Horas(info.start.toLocaleTimeString());
+                        }
+                        if (!/^\d{2}:\d{2}:\d{2}$/.test(hora)) {
+                            alert('Formato de hora inválido. Intente nuevamente.');
+                            return;
+                        }
+                        const horarioNuevo = {
+                            fecha: info.start.toISOString().split('T')[0],
+                            hora: hora,
+                            estado: 'disponible',
+                            tipo: 'extra'
+                        };
                         const { data, error } = await supabase
                             .from('horarios_disponibles')
-                            .insert([{
-                                fecha: info.start.toISOString().split('T')[0],
-                                hora: info.start.toLocaleTimeString(),
-                                estado: 'disponible'
-                            }])
-                            .select()
+                            .insert([horarioNuevo])
+                            .select();
 
-                        if (error) throw error
+                        if (error) throw error;
 
                         calendar.addEvent({
-                            title: 'Disponible',
+                            title: 'Horario Extra',
                             start: info.start,
                             end: info.end,
-                            backgroundColor: '#4CAF50'
-                        })
+                            backgroundColor: '#4fc3f7'
+                        });
+                        alert('Horario extra guardado exitosamente.');
                     } catch (error) {
-                        console.error('Error al guardar horario:', error)
-                        alert('Error al guardar el horario')
+                        console.error('Error al guardar horario:', error);
+                        alert('Error al guardar el horario: ' + (error.message || 'Error desconocido.'));
                     }
                 }
-                calendar.unselect()
+                calendar.unselect();
             },
             eventClick: function(info) {
                 if (confirm('¿Desea eliminar este horario disponible?')) {
@@ -611,3 +625,9 @@ async function cancelarCita(citaId, citaElement) {
     }
 }
 window.cancelarCita = cancelarCita; // Ensure it's globally accessible
+
+// Helper para convertir a formato 24 horas si fuera necesario
+function convertirAFormato24Horas(hora12) {
+    const date = new Date('1970-01-01T' + hora12);
+    return date.toTimeString().slice(0, 8); // HH:MM:SS
+}

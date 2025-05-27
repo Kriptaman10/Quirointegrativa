@@ -11,8 +11,127 @@ document.addEventListener('DOMContentLoaded', () => {
     const slotSeleccionado = document.getElementById('slot-seleccionado')
     const textoSlotSeleccionado = slotSeleccionado.querySelector('span')
     const toastExito = document.getElementById('toast-exito')
+    const emailInput = document.getElementById('email-paciente')
+    const errorEmail = document.getElementById('error-email')
+    const emailContainer = emailInput.closest('.email-input-container')
 
     console.log('Formulario encontrado:', formulario);
+
+    // Constantes
+    const API_KEY = "5368b77e0f574445979a9cf742ff983a"
+    const DEBOUNCE_DELAY = 1500
+    const RATE_LIMIT_COOLDOWN = 30000 // 30 segundos
+    let isValidationEnabled = true
+    let validationTimeout = null
+
+    // Función para aplicar debounce
+    function debounce(func, wait) {
+        let timeout
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout)
+                func(...args)
+            }
+            clearTimeout(timeout)
+            timeout = setTimeout(later, wait)
+        }
+    }
+
+    // Función para manejar el rate limiting
+    function handleRateLimit() {
+        isValidationEnabled = false
+        emailInput.classList.add('input-error')
+        errorEmail.textContent = 'Demasiadas validaciones. Inténtalo más tarde.'
+        botonEnviar.disabled = true
+
+        setTimeout(() => {
+            isValidationEnabled = true
+            emailInput.classList.remove('input-error')
+            errorEmail.textContent = ''
+            actualizarBotonEnviar()
+        }, RATE_LIMIT_COOLDOWN)
+    }
+
+    // Función para validar email en tiempo real
+    async function validarEmailTiempoReal(email) {
+        if (!isValidationEnabled) return false
+
+        try {
+            const response = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${API_KEY}&email=${encodeURIComponent(email)}`)
+            
+            if (response.status === 429) {
+                handleRateLimit()
+                return false
+            }
+
+            const data = await response.json()
+            
+            if (data.deliverability === "UNDELIVERABLE") {
+                emailInput.classList.add('input-error')
+                emailContainer.classList.remove('valid')
+                errorEmail.textContent = 'El correo ingresado no es válido o no existe.'
+                botonEnviar.disabled = true
+                return false
+            }
+
+            // Email válido
+            emailInput.classList.remove('input-error')
+            emailContainer.classList.add('valid')
+            errorEmail.textContent = ''
+            actualizarBotonEnviar()
+            return true
+        } catch (error) {
+            console.error('Error al validar email:', error)
+            return false
+        }
+    }
+
+    // Aplicar debounce a la validación
+    const validarEmailDebounced = debounce(async (email) => {
+        if (!email) {
+            emailInput.classList.remove('input-error')
+            emailContainer.classList.remove('valid')
+            errorEmail.textContent = ''
+            actualizarBotonEnviar()
+            return
+        }
+        await validarEmailTiempoReal(email)
+    }, DEBOUNCE_DELAY)
+
+    // Agregar eventos al campo de email
+    emailInput.addEventListener('input', (e) => {
+        if (validationTimeout) clearTimeout(validationTimeout)
+        validationTimeout = setTimeout(() => {
+            validarEmailDebounced(e.target.value)
+        }, 1000)
+    })
+
+    emailInput.addEventListener('blur', (e) => {
+        if (validationTimeout) clearTimeout(validationTimeout)
+        validarEmailDebounced(e.target.value)
+    })
+
+    // Función para validar email con AbstractAPI (para el submit)
+    async function validarEmailAbstractAPI(email) {
+        try {
+            const response = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${API_KEY}&email=${encodeURIComponent(email)}`)
+            
+            if (response.status === 429) {
+                throw new Error('Demasiadas validaciones. Inténtalo más tarde.')
+            }
+
+            const data = await response.json()
+            
+            if (data.deliverability === "UNDELIVERABLE") {
+                throw new Error('El correo electrónico no es válido o no existe.')
+            }
+            
+            return true
+        } catch (error) {
+            console.error('Error al validar email:', error)
+            throw error
+        }
+    }
 
     // Función para mostrar el toast
     function mostrarToast(mensaje, esError = false) {
@@ -32,7 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Función para habilitar/deshabilitar el botón de envío
     function actualizarBotonEnviar() {
-        const esFormularioValido = formulario.checkValidity() && slotSeleccionado.style.display !== 'none'
+        const esFormularioValido = formulario.checkValidity() && 
+                                 slotSeleccionado.style.display !== 'none' && 
+                                 !emailInput.classList.contains('input-error')
         botonEnviar.disabled = !esFormularioValido
     }
 
@@ -49,11 +170,16 @@ document.addEventListener('DOMContentLoaded', () => {
             hora: document.getElementById('hora').value
         }
 
-        console.log('Enviando datos a Supabase:', datosFormulario)
-
         try {
             // Deshabilitar el botón mientras se procesa
             botonEnviar.disabled = true
+            botonEnviar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...'
+
+            // Validar email con AbstractAPI
+            await validarEmailAbstractAPI(datosFormulario.email)
+
+            // Si la validación es exitosa, continuar con el proceso normal
+            console.log('Enviando datos a Supabase:', datosFormulario)
 
             // Guardar la cita
             const { data, error } = await supabase
@@ -82,16 +208,13 @@ document.addEventListener('DOMContentLoaded', () => {
             slotSeleccionado.style.display = 'none'
             actualizarBotonEnviar()
 
-            // Prevenir cualquier comportamiento adicional del navegador
-            return false
-
         } catch (error) {
             console.error('Error:', error)
-            mostrarToast('Hubo un error al agendar la cita. Por favor, inténtelo nuevamente.', true)
-            // Habilitar el botón nuevamente
+            mostrarToast(error.message || 'Hubo un error al agendar la cita. Por favor, inténtelo nuevamente.', true)
+        } finally {
+            // Restaurar el botón
             botonEnviar.disabled = false
-            // Prevenir cualquier comportamiento adicional del navegador
-            return false
+            botonEnviar.innerHTML = 'Agendar Cita'
         }
     })
 
