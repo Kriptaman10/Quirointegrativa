@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Quirointegrativa</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logo.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="css/panel-admin.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="encabezado-principal">
+        <div class="contenedor-encabezado">
+            <div class="contenedor-logo">
+                <a href="index.html">
+                    <img src="assets/logo.png" alt="Quirointegrativa" class="logo">
+                </a>
+            </div>
+            
+            <nav class="navegacion-principal">
+                <button class="boton-menu" aria-label="Abrir menú">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <ul class="lista-navegacion">
+                    <li><a href="index.html" class="enlace-navegacion">Inicio</a></li>
+                    <li><a href="panel-admin.html" class="enlace-navegacion activo">Admin</a></li>
+                    <li><a href="informacion.html" class="enlace-navegacion">Información</a></li>
+                    <li><a href="contacto.html" class="enlace-navegacion">Contacto</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="contenido-principal">
+        <div class="container">
+            <h1 class="titulo-panel">Panel de Administración</h1>
+            
+            <!-- Sección de Horarios Extra -->
+            <section class="seccion-horarios">
+                <h2>Gestión de Horarios Extra</h2>
+                
+                <!-- Formulario para agregar horario extra -->
+                <form id="formulario-horario-extra" class="formulario-horario">
+                    <div class="grid-formulario">
+                        <div class="grupo-formulario">
+                            <label for="fecha-extra">
+                                <i class="fas fa-calendar"></i> Fecha
+                            </label>
+                            <input type="date" id="fecha-extra" name="fecha" required>
+                        </div>
+                        
+                        <div class="grupo-formulario">
+                            <label for="hora-extra">
+                                <i class="fas fa-clock"></i> Hora
+                            </label>
+                            <input type="time" id="hora-extra" name="hora" required>
+                        </div>
+                    </div>
+                    
+                    <div class="acciones-formulario">
+                        <button type="submit" class="boton-agregar">
+                            <i class="fas fa-plus"></i> Agregar Horario Extra
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Lista de horarios extra -->
+                <div class="lista-horarios-extra">
+                    <h3>Horarios Extra Programados</h3>
+                    <div id="tabla-horarios-extra" class="tabla-horarios">
+                        <!-- Los horarios se cargarán dinámicamente -->
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="pie-pagina">
+        <div class="footer-contenedor">
+            <p>&copy; 2025 Quirointegrativa. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Inicialización de Supabase
+        window.supabaseClient = supabase.createClient(
+            'https://ivneinajrywdljevjgjx.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bmVpbmFqcnl3ZGxqZXZqZ2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0ODA5NDIsImV4cCI6MjA2MTA1Njk0Mn0.ySUivP0cdQ8_c1y7BE7uxEH_F3fKawxtuyi0IiMfLwQ'
+        );
+    </script>
+    <script src="js/panel-admin.js"></script>
+
+    <!-- Toast de notificación -->
+    <div id="toast-notificacion" class="toast-notificacion" style="display:none;">
+        <i class="fas fa-info-circle"></i>
+        <span id="mensaje-toast"></span>
+    </div>
+</body>
+</html> 

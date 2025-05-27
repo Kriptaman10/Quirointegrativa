@@ -1,0 +1,126 @@
+/* Estilos para el calendario */
+.calendario-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+
+#calendario {
+    margin-top: 1rem;
+}
+
+/* Estilos para eventos */
+.fc-event {
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.fc-event:hover {
+    transform: scale(1.02);
+}
+
+/* Eventos disponibles */
+.fc-event.disponible {
+    background-color: #5cb85c;
+    border-color: #4cae4c;
+    color: white;
+}
+
+/* Eventos ocupados */
+.fc-event.ocupado {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #495057;
+    cursor: not-allowed;
+}
+
+.fc-event.confirmada {
+    background-color: #ff4d4d;
+    border-color: #ff3333;
+    color: white;
+}
+
+.fc-event.pendiente {
+    background-color: #dddddd;
+    border-color: #cccccc;
+    color: #666666;
+}
+
+/* Horarios extra */
+.fc-event.horario-extra {
+    background-color: #4fc3f7;
+    border-color: #29b6f6;
+    color: white;
+}
+
+.fc-event.horario-extra:hover {
+    background-color: #29b6f6;
+}
+
+/* Contenido de eventos */
+.evento-ocupado,
+.evento-disponible {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.evento-ocupado i,
+.evento-disponible i {
+    font-size: 1rem;
+}
+
+/* Slot seleccionado */
+.selected-datetime {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    text-align: center;
+    font-weight: 500;
+    color: #1976d2;
+}
+
+/* Leyenda del calendario */
+.calendario-leyenda {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.leyenda-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.leyenda-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .calendario-section {
+        padding: 1rem;
+    }
+    
+    .calendario-leyenda {
+        gap: 1rem;
+    }
+    
+    .fc-event {
+        font-size: 0.8rem;
+        padding: 2px 4px;
+    }
+} 

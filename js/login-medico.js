@@ -6,8 +6,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.querySelector('.login-form');
     const toastContainer = document.getElementById('toast-container');
 
+    if (!loginForm) {
+        console.warn('No se encontró el formulario de login (.login-form) en esta página.');
+        return;
+    }
+    if (!toastContainer) {
+        console.warn('No se encontró el contenedor de toast (#toast-container) en esta página.');
+    }
+
     // Función para mostrar mensajes
     function mostrarMensaje(mensaje, tipo = 'error') {
+        if (!toastContainer) {
+            alert(mensaje);
+            return;
+        }
         const toast = document.createElement('div');
         toast.className = `toast toast-${tipo}`;
         toast.innerHTML = `
