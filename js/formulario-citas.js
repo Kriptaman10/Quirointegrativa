@@ -157,32 +157,87 @@ document.addEventListener('DOMContentLoaded', () => {
         botonEnviar.disabled = !esFormularioValido
     }
 
+    // Función para mostrar mensaje de error
+    function mostrarError(mensaje) {
+        const toastExito = document.getElementById('toast-exito');
+        toastExito.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${mensaje}`;
+        toastExito.style.backgroundColor = '#ff4444';
+        toastExito.classList.add('mostrar');
+        toastExito.style.display = 'flex';
+        setTimeout(() => {
+            toastExito.classList.remove('mostrar');
+            toastExito.style.display = 'none';
+        }, 3000);
+    }
+
+    // Función para mostrar mensaje de éxito
+    function mostrarExito() {
+        const toastExito = document.getElementById('toast-exito');
+        toastExito.innerHTML = '<i class="fas fa-check-circle"></i> ¡Cita agendada exitosamente!';
+        toastExito.style.backgroundColor = '#4CAF50';
+        toastExito.classList.add('mostrar');
+        toastExito.style.display = 'flex';
+        setTimeout(() => {
+            toastExito.classList.remove('mostrar');
+            toastExito.style.display = 'none';
+        }, 3000);
+    }
+
     // Manejar el envío del formulario
     formulario.addEventListener('submit', async (e) => {
-        e.preventDefault()
-        e.stopPropagation() // Detener la propagación del evento
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Iniciando proceso de agendamiento desde formulario-citas.js');
 
-        const datosFormulario = {
-            nombre: document.getElementById('nombre-paciente').value,
-            telefono: document.getElementById('telefono-paciente').value,
-            email: document.getElementById('email-paciente').value,
-            fecha: document.getElementById('fecha').value,
-            hora: document.getElementById('hora').value
-        }
+        // Deshabilitar el botón inmediatamente
+        botonEnviar.disabled = true;
+        botonEnviar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
 
         try {
-            // Deshabilitar el botón mientras se procesa
-            botonEnviar.disabled = true
-            botonEnviar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...'
+            const datosFormulario = {
+                nombre: document.getElementById('nombre-paciente').value,
+                telefono: document.getElementById('telefono-paciente').value,
+                email: document.getElementById('email-paciente').value,
+                fecha: document.getElementById('fecha').value,
+                hora: document.getElementById('hora').value
+            };
 
-            // Validar email con AbstractAPI
-            await validarEmailAbstractAPI(datosFormulario.email)
+            console.log('Datos del formulario:', datosFormulario);
 
-            // Si la validación es exitosa, continuar con el proceso normal
-            console.log('Enviando datos a Supabase:', datosFormulario)
+            // Paso 1: Validar email
+            try {
+                console.log('Validando email...');
+                await validarEmailAbstractAPI(datosFormulario.email);
+            } catch (error) {
+                console.log('Error en validación de email:', error.message);
+                mostrarError(error.message);
+                return;
+            }
 
-            // Guardar la cita
-            const { data, error } = await supabase
+            // Paso 2: Verificar disponibilidad en Supabase
+            console.log('Verificando disponibilidad en Supabase...');
+            const { data: citasExistentes, error: errorConsulta } = await supabase
+                .from('citas')
+                .select('id')
+                .eq('fecha', datosFormulario.fecha)
+                .eq('hora', datosFormulario.hora)
+                .in('estado', ['pendiente', 'confirmada']);
+
+            if (errorConsulta) {
+                console.log('Error al consultar disponibilidad:', errorConsulta);
+                mostrarError('No se pudo verificar la disponibilidad del horario.');
+                return;
+            }
+
+            if (citasExistentes && citasExistentes.length > 0) {
+                console.log('Horario ocupado encontrado');
+                mostrarError('Lo sentimos, este horario ya está ocupado. Por favor, seleccione otro horario disponible.');
+                return;
+            }
+
+            // Paso 3: Guardar la cita (solo si llegamos aquí, significa que el horario está disponible)
+            console.log('Intentando guardar la cita...');
+            const { data: nuevaCita, error: errorGuardado } = await supabase
                 .from('citas')
                 .insert([{
                     nombre: datosFormulario.nombre,
@@ -192,31 +247,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     hora: datosFormulario.hora,
                     estado: 'pendiente'
                 }])
-                .select()
+                .select();
 
-            console.log('Respuesta de Supabase:', data, error)
-
-            if (error) {
-                throw error
+            if (errorGuardado) {
+                console.log('Error al guardar la cita:', errorGuardado);
+                mostrarError('Error al guardar la cita. Por favor, inténtelo nuevamente.');
+                return;
             }
 
-            // Mostrar mensaje de éxito
-            mostrarToast('¡Cita agendada exitosamente!')
-            
-            // Limpiar el formulario
-            formulario.reset()
-            slotSeleccionado.style.display = 'none'
-            actualizarBotonEnviar()
+            if (!nuevaCita || nuevaCita.length === 0) {
+                console.log('No se recibió confirmación de la cita guardada');
+                mostrarError('No se pudo guardar la cita. Por favor, inténtelo nuevamente.');
+                return;
+            }
+
+            console.log('Cita guardada exitosamente:', nuevaCita);
+
+            // Si llegamos aquí, la cita se guardó correctamente
+            // Primero limpiar el formulario y actualizar la UI
+            formulario.reset();
+            slotSeleccionado.style.display = 'none';
+            actualizarBotonEnviar();
+
+            // Disparar evento para actualizar el calendario
+            const eventoActualizacion = new CustomEvent('citaGuardada', {
+                detail: { fecha: datosFormulario.fecha, hora: datosFormulario.hora }
+            });
+            window.dispatchEvent(eventoActualizacion);
+
+            // Solo después de limpiar todo y confirmar que se guardó, mostrar el mensaje de éxito
+            mostrarExito();
 
         } catch (error) {
-            console.error('Error:', error)
-            mostrarToast(error.message || 'Hubo un error al agendar la cita. Por favor, inténtelo nuevamente.', true)
+            console.error('Error inesperado en el proceso de agendamiento:', error);
+            mostrarError('Ha ocurrido un error inesperado. Por favor, inténtelo nuevamente.');
         } finally {
             // Restaurar el botón
-            botonEnviar.disabled = false
-            botonEnviar.innerHTML = 'Agendar Cita'
+            botonEnviar.disabled = false;
+            botonEnviar.innerHTML = '<i class="fas fa-calendar-check"></i> Agendar Cita';
         }
-    })
+    });
 
     // Actualizar el botón cuando cambian los campos
     formulario.querySelectorAll('input').forEach(input => {
