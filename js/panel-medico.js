@@ -153,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div class="appointment-actions">
                                 <span class="status-badge status-${cita.estado}">${cita.estado}</span>
+                                <button class="btn-action btn-modificar">
+                                    <i class="fas fa-edit"></i> Modificar
+                                </button>
                                 ${cita.estado === 'pendiente' ? `
                                     <button class="btn-action btn-confirmar">
                                         <i class="fas fa-check"></i> Confirmar
@@ -476,7 +479,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (clickedButton.classList.contains('btn-confirmar')) {
+            if (clickedButton.classList.contains('btn-modificar')) {
+                mostrarModalModificacion({
+                    id: citaId,
+                    nombre: nombrePaciente,
+                    email: emailPaciente,
+                    fecha: fechaCita,
+                    hora: horaCita
+                });
+            } else if (clickedButton.classList.contains('btn-confirmar')) {
                 if (window.confirmarCita) {
                     window.confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, horaCita, clickedButton);
                 } else {
@@ -575,59 +586,483 @@ async function confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, h
 }
 window.confirmarCita = confirmarCita; // Ensure it's globally accessible
 
+// Función para enviar correo de cancelación
+async function enviarCorreoCancelacion(cita) {
+    try {
+        const templateParams = {
+            nombre: cita.nombre,
+            fecha: cita.fecha,
+            hora: cita.hora,
+            email: cita.email
+        };
+
+        await emailjs.send('default_service', 'template_36ity4i', templateParams);
+        console.log('Correo de cancelación enviado exitosamente');
+    } catch (error) {
+        console.warn('Error al enviar correo de cancelación:', error);
+    }
+}
 
 async function cancelarCita(citaId, citaElement) {
-    const cancelarButtonElement = citaElement.querySelector('.btn-cancelar');
-    // It's possible the confirmar button doesn't exist if the appointment was already confirmed and then an attempt to cancel happens through console,
-    // or if the HTML structure changes. So, check if it exists.
-    const confirmarButtonElement = citaElement.querySelector('.btn-confirmar');
-
-    let originalButtonText = '';
-    if (cancelarButtonElement) {
-        originalButtonText = cancelarButtonElement.innerHTML;
-        cancelarButtonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
-        cancelarButtonElement.disabled = true;
-    }
-
-    if (confirmarButtonElement) {
-        confirmarButtonElement.disabled = true;
-    }
-
     try {
-        // 1. Delete from Supabase
-        const { error: supabaseError } = await supabase
+        // Obtener los datos de la cita antes de eliminarla
+        const { data: cita, error: errorConsulta } = await supabase
+            .from('citas')
+            .select('*')
+            .eq('id', citaId)
+            .single();
+
+        if (errorConsulta) throw errorConsulta;
+
+        // Eliminar la cita
+        const { error: errorEliminacion } = await supabase
             .from('citas')
             .delete()
             .eq('id', citaId);
 
-        if (supabaseError) {
-            throw new Error(`Error de Supabase: ${supabaseError.message}`);
-        }
+        if (errorEliminacion) throw errorEliminacion;
 
-        // 2. Update UI
+        // Si la eliminación fue exitosa, enviar el correo
+        await enviarCorreoCancelacion(cita);
+
+        // Actualizar la UI
         citaElement.remove();
-        alert('Cita cancelada exitosamente.'); // Optional success message
-
-        // No need to call cargarCitas()
-
+        mostrarNotificacion('Cita cancelada exitosamente', 'success');
+        
+        // Actualizar el dashboard si está visible
+        if (document.getElementById('dashboard').classList.contains('active')) {
+            cargarDashboard();
+        }
     } catch (error) {
-        console.error('Error al cancelar la cita:', error.message);
-        alert(`Error al cancelar la cita: ${error.message.includes('Supabase') ? 'Fallo al eliminar de la base de datos.' : 'Error inesperado.'}`);
-
-        // Revert button states if the element still exists and buttons are present
-        if (cancelarButtonElement && document.body.contains(citaElement)) {
-            cancelarButtonElement.innerHTML = originalButtonText;
-            cancelarButtonElement.disabled = false;
-        }
-        if (confirmarButtonElement && document.body.contains(citaElement)) {
-            confirmarButtonElement.disabled = false;
-        }
+        console.error('Error al cancelar la cita:', error);
+        mostrarNotificacion('Error al cancelar la cita', 'error');
     }
 }
-window.cancelarCita = cancelarCita; // Ensure it's globally accessible
 
 // Helper para convertir a formato 24 horas si fuera necesario
 function convertirAFormato24Horas(hora12) {
     const date = new Date('1970-01-01T' + hora12);
     return date.toTimeString().slice(0, 8); // HH:MM:SS
+}
+
+// Función para mostrar el modal de modificación
+function mostrarModalModificacion(cita) {
+    // Crear el modal si no existe
+    let modal = document.getElementById('modal-modificar-cita');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-modificar-cita';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-calendar-edit"></i> Modificar Cita</h3>
+                    <button class="btn-cerrar">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-modificar-cita">
+                        <div class="form-group">
+                            <label for="nueva-fecha">
+                                <i class="fas fa-calendar"></i> Fecha:
+                            </label>
+                            <input type="date" id="nueva-fecha" required>
+                        </div>
+                        <div class="form-group" style="position:relative;">
+                            <label for="nueva-hora">
+                                <i class="fas fa-clock"></i> Hora:
+                            </label>
+                            <span class="icon-select"><i class="fas fa-clock"></i></span>
+                            <select id="nueva-hora" required>
+                                <option value="17:30">17:30</option>
+                                <option value="18:00">18:00</option>
+                                <option value="18:30">18:30</option>
+                                <option value="19:00">19:00</option>
+                                <option value="19:30">19:30</option>
+                                <option value="20:00">20:00</option>
+                            </select>
+                            <span class="arrow-select"><i class="fas fa-chevron-down"></i></span>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-guardar">
+                                <i class="fas fa-save"></i> Guardar cambios
+                            </button>
+                            <button type="button" class="btn-cancelar">
+                                <i class="fas fa-times"></i> Cancelar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Agregar estilos al modal
+        const style = document.createElement('style');
+        style.textContent = `
+            .btn-modificar {
+                background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+            }
+            .btn-modificar:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+                background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+            }
+            .btn-modificar:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+            }
+            .btn-modificar i {
+                font-size: 0.9em;
+            }
+
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            .modal.show {
+                opacity: 1;
+            }
+            .modal-content {
+                position: relative;
+                background-color: #fff;
+                margin: 10% auto;
+                padding: 25px;
+                width: 90%;
+                max-width: 500px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                transform: translateY(-20px);
+                transition: transform 0.3s ease;
+            }
+            .modal.show .modal-content {
+                transform: translateY(0);
+            }
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 25px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid #f0f0f0;
+            }
+            .modal-header h3 {
+                color: #2196F3;
+                font-size: 1.4rem;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin: 0;
+            }
+            .modal-header h3 i {
+                color: #2196F3;
+            }
+            .btn-cerrar {
+                background: none;
+                border: none;
+                font-size: 28px;
+                cursor: pointer;
+                color: #666;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                transition: all 0.3s ease;
+            }
+            .btn-cerrar:hover {
+                background-color: #f0f0f0;
+                color: #333;
+            }
+            .form-group {
+                margin-bottom: 20px;
+            }
+            .form-group label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
+                font-weight: 500;
+                color: #333;
+            }
+            .form-group label i {
+                color: #2196F3;
+            }
+            .form-group input {
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+            }
+            .form-group input:focus {
+                border-color: #2196F3;
+                box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+                outline: none;
+            }
+            .form-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 12px;
+                margin-top: 25px;
+            }
+            .btn-guardar, .btn-cancelar {
+                padding: 12px 24px;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+                font-size: 1rem;
+            }
+            .btn-guardar {
+                background-color: #2196F3;
+                color: white;
+                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+            }
+            .btn-guardar:hover {
+                background-color: #1976D2;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+            }
+            .btn-cancelar {
+                background-color: #f5f5f5;
+                color: #666;
+            }
+            .btn-cancelar:hover {
+                background-color: #e0e0e0;
+                color: #333;
+            }
+            @media (max-width: 600px) {
+                .modal-content {
+                    margin: 5% auto;
+                    padding: 20px;
+                }
+                .form-actions {
+                    flex-direction: column;
+                }
+                .btn-guardar, .btn-cancelar {
+                    width: 100%;
+                    justify-content: center;
+                }
+            }
+            .form-group select {
+                width: 100%;
+                padding: 14px 44px 14px 44px;
+                border: 2px solid #2196F3;
+                border-radius: 10px;
+                font-size: 1.15rem;
+                background: #f7fbff;
+                color: #1976D2;
+                font-weight: 600;
+                box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+                transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+                appearance: none;
+                outline: none;
+                cursor: pointer;
+                position: relative;
+            }
+            .form-group select:focus, .form-group select:hover {
+                border-color: #1565c0;
+                background: #e3f2fd;
+                box-shadow: 0 4px 16px rgba(33,150,243,0.13);
+            }
+            .form-group select option {
+                padding: 16px 0;
+                font-size: 1.1rem;
+                color: #1976D2;
+                background: #fff;
+                border-bottom: 1px solid #e3f2fd;
+            }
+            .form-group .icon-select {
+                position: absolute;
+                left: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #2196F3;
+                font-size: 1.3em;
+                pointer-events: none;
+            }
+            .form-group .arrow-select {
+                position: absolute;
+                right: 18px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #2196F3;
+                font-size: 1.2em;
+                pointer-events: none;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Agregar eventos al modal
+        modal.querySelector('.btn-cerrar').addEventListener('click', () => {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        });
+
+        modal.querySelector('.btn-cancelar').addEventListener('click', () => {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        });
+
+        // Prellenar el formulario con los datos actuales
+        document.getElementById('nueva-fecha').value = cita.fecha;
+        const selectHora = document.getElementById('nueva-hora');
+        
+        // Validar que la hora actual esté en el rango permitido
+        const horaActual = cita.hora;
+        const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
+        
+        if (horasValidas.includes(horaActual)) {
+            selectHora.value = horaActual;
+        } else {
+            // Si la hora actual no es válida, seleccionar la más cercana
+            const horaIndex = horasValidas.findIndex(h => h > horaActual);
+            selectHora.value = horaIndex >= 0 ? horasValidas[horaIndex] : horasValidas[0];
+        }
+
+        // Mostrar el modal con animación
+        modal.style.display = 'block';
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
+
+        modal.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nuevaFecha = document.getElementById('nueva-fecha').value;
+            const nuevaHora = document.getElementById('nueva-hora').value;
+            
+            try {
+                // Verificar disponibilidad
+                const { data: citasExistentes, error: errorConsulta } = await supabase
+                    .from('citas')
+                    .select('id')
+                    .eq('fecha', nuevaFecha)
+                    .eq('hora', nuevaHora)
+                    .neq('id', cita.id)
+                    .in('estado', ['pendiente', 'confirmada']);
+
+                if (errorConsulta) throw errorConsulta;
+
+                if (citasExistentes && citasExistentes.length > 0) {
+                    mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
+                    return;
+                }
+
+                // Actualizar la cita
+                const { error: errorActualizacion } = await supabase
+                    .from('citas')
+                    .update({
+                        fecha: nuevaFecha,
+                        hora: nuevaHora
+                    })
+                    .eq('id', cita.id);
+
+                if (errorActualizacion) throw errorActualizacion;
+
+                // Actualizar la UI
+                const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
+                if (citaElement) {
+                    citaElement.dataset.fecha = nuevaFecha;
+                    citaElement.dataset.hora = nuevaHora;
+                    citaElement.querySelector('div:first-child').innerHTML = `
+                        <strong>${cita.nombre}</strong><br>
+                        ${nuevaFecha} - ${nuevaHora}<br>
+                        <small>${cita.email} | ${cita.telefono}</small>
+                    `;
+                }
+
+                // Cerrar el modal y mostrar notificación
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300);
+                mostrarNotificacion('Cita modificada exitosamente', 'success');
+
+                // Actualizar el dashboard si está visible
+                if (document.getElementById('dashboard').classList.contains('active')) {
+                    cargarDashboard();
+                }
+            } catch (error) {
+                console.error('Error al modificar la cita:', error);
+                mostrarNotificacion('Error al modificar la cita', 'error');
+            }
+        });
+    }
+}
+
+// Función para mostrar notificaciones
+function mostrarNotificacion(mensaje, tipo) {
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    notificacion.innerHTML = `
+        <i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        <span>${mensaje}</span>
+    `;
+    document.body.appendChild(notificacion);
+
+    // Agregar estilos a la notificación si no existen
+    if (!document.getElementById('estilos-notificacion')) {
+        const style = document.createElement('style');
+        style.id = 'estilos-notificacion';
+        style.textContent = `
+            .notificacion {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                border-radius: 4px;
+                color: white;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                z-index: 1000;
+                animation: slideIn 0.3s ease-out;
+            }
+            .notificacion.success {
+                background-color: #4CAF50;
+            }
+            .notificacion.error {
+                background-color: #f44336;
+            }
+            @keyframes slideIn {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Eliminar la notificación después de 3 segundos
+    setTimeout(() => {
+        notificacion.remove();
+    }, 3000);
 }
