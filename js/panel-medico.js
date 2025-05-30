@@ -153,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div class="appointment-actions">
                                 <span class="status-badge status-${cita.estado}">${cita.estado}</span>
+                                <button class="btn-action btn-modificar">
+                                    <i class="fas fa-edit"></i> Modificar
+                                </button>
                                 ${cita.estado === 'pendiente' ? `
                                     <button class="btn-action btn-confirmar">
                                         <i class="fas fa-check"></i> Confirmar
@@ -476,7 +479,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (clickedButton.classList.contains('btn-confirmar')) {
+            if (clickedButton.classList.contains('btn-modificar')) {
+                mostrarModalModificacion({
+                    id: citaId,
+                    nombre: nombrePaciente,
+                    email: emailPaciente,
+                    fecha: fechaCita,
+                    hora: horaCita
+                });
+            } else if (clickedButton.classList.contains('btn-confirmar')) {
                 if (window.confirmarCita) {
                     window.confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, horaCita, clickedButton);
                 } else {
@@ -575,59 +586,293 @@ async function confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, h
 }
 window.confirmarCita = confirmarCita; // Ensure it's globally accessible
 
+// Función para enviar correo de cancelación
+async function enviarCorreoCancelacion(cita) {
+    try {
+        const templateParams = {
+            nombre: cita.nombre,
+            fecha: cita.fecha,
+            hora: cita.hora,
+            email: cita.email
+        };
+
+        await emailjs.send('default_service', 'template_36ity4i', templateParams);
+        console.log('Correo de cancelación enviado exitosamente');
+    } catch (error) {
+        console.warn('Error al enviar correo de cancelación:', error);
+    }
+}
 
 async function cancelarCita(citaId, citaElement) {
-    const cancelarButtonElement = citaElement.querySelector('.btn-cancelar');
-    // It's possible the confirmar button doesn't exist if the appointment was already confirmed and then an attempt to cancel happens through console,
-    // or if the HTML structure changes. So, check if it exists.
-    const confirmarButtonElement = citaElement.querySelector('.btn-confirmar');
-
-    let originalButtonText = '';
-    if (cancelarButtonElement) {
-        originalButtonText = cancelarButtonElement.innerHTML;
-        cancelarButtonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...';
-        cancelarButtonElement.disabled = true;
-    }
-
-    if (confirmarButtonElement) {
-        confirmarButtonElement.disabled = true;
-    }
-
     try {
-        // 1. Delete from Supabase
-        const { error: supabaseError } = await supabase
+        // Obtener los datos de la cita antes de eliminarla
+        const { data: cita, error: errorConsulta } = await supabase
+            .from('citas')
+            .select('*')
+            .eq('id', citaId)
+            .single();
+
+        if (errorConsulta) throw errorConsulta;
+
+        // Eliminar la cita
+        const { error: errorEliminacion } = await supabase
             .from('citas')
             .delete()
             .eq('id', citaId);
 
-        if (supabaseError) {
-            throw new Error(`Error de Supabase: ${supabaseError.message}`);
-        }
+        if (errorEliminacion) throw errorEliminacion;
 
-        // 2. Update UI
+        // Si la eliminación fue exitosa, enviar el correo
+        await enviarCorreoCancelacion(cita);
+
+        // Actualizar la UI
         citaElement.remove();
-        alert('Cita cancelada exitosamente.'); // Optional success message
-
-        // No need to call cargarCitas()
-
+        mostrarNotificacion('Cita cancelada exitosamente', 'success');
+        
+        // Actualizar el dashboard si está visible
+        if (document.getElementById('dashboard').classList.contains('active')) {
+            cargarDashboard();
+        }
     } catch (error) {
-        console.error('Error al cancelar la cita:', error.message);
-        alert(`Error al cancelar la cita: ${error.message.includes('Supabase') ? 'Fallo al eliminar de la base de datos.' : 'Error inesperado.'}`);
-
-        // Revert button states if the element still exists and buttons are present
-        if (cancelarButtonElement && document.body.contains(citaElement)) {
-            cancelarButtonElement.innerHTML = originalButtonText;
-            cancelarButtonElement.disabled = false;
-        }
-        if (confirmarButtonElement && document.body.contains(citaElement)) {
-            confirmarButtonElement.disabled = false;
-        }
+        console.error('Error al cancelar la cita:', error);
+        mostrarNotificacion('Error al cancelar la cita', 'error');
     }
 }
-window.cancelarCita = cancelarCita; // Ensure it's globally accessible
 
 // Helper para convertir a formato 24 horas si fuera necesario
 function convertirAFormato24Horas(hora12) {
     const date = new Date('1970-01-01T' + hora12);
     return date.toTimeString().slice(0, 8); // HH:MM:SS
+}
+
+// Función para mostrar el modal de modificación
+function mostrarModalModificacion(cita) {
+    // Crear el modal si no existe
+    let modal = document.getElementById('modal-modificar-cita');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-modificar-cita';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Modificar Cita</h3>
+                    <button class="btn-cerrar">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-modificar-cita">
+                        <div class="form-group">
+                            <label for="nueva-fecha">Fecha:</label>
+                            <input type="date" id="nueva-fecha" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="nueva-hora">Hora:</label>
+                            <input type="time" id="nueva-hora" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-guardar">Guardar cambios</button>
+                            <button type="button" class="btn-cancelar">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Agregar estilos al modal
+        const style = document.createElement('style');
+        style.textContent = `
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 1000;
+            }
+            .modal-content {
+                position: relative;
+                background-color: #fff;
+                margin: 15% auto;
+                padding: 20px;
+                width: 80%;
+                max-width: 500px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+            .btn-cerrar {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #666;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            .form-group label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 500;
+            }
+            .form-group input {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            .form-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 20px;
+            }
+            .btn-guardar, .btn-cancelar {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .btn-guardar {
+                background-color: #4CAF50;
+                color: white;
+            }
+            .btn-cancelar {
+                background-color: #f44336;
+                color: white;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Agregar eventos al modal
+        modal.querySelector('.btn-cerrar').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        modal.querySelector('.btn-cancelar').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        modal.querySelector('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nuevaFecha = document.getElementById('nueva-fecha').value;
+            const nuevaHora = document.getElementById('nueva-hora').value;
+            
+            try {
+                // Verificar disponibilidad
+                const { data: citasExistentes, error: errorConsulta } = await supabase
+                    .from('citas')
+                    .select('id')
+                    .eq('fecha', nuevaFecha)
+                    .eq('hora', nuevaHora)
+                    .neq('id', cita.id)
+                    .in('estado', ['pendiente', 'confirmada']);
+
+                if (errorConsulta) throw errorConsulta;
+
+                if (citasExistentes && citasExistentes.length > 0) {
+                    mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
+                    return;
+                }
+
+                // Actualizar la cita
+                const { error: errorActualizacion } = await supabase
+                    .from('citas')
+                    .update({
+                        fecha: nuevaFecha,
+                        hora: nuevaHora
+                    })
+                    .eq('id', cita.id);
+
+                if (errorActualizacion) throw errorActualizacion;
+
+                // Actualizar la UI
+                const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
+                if (citaElement) {
+                    citaElement.dataset.fecha = nuevaFecha;
+                    citaElement.dataset.hora = nuevaHora;
+                    citaElement.querySelector('div:first-child').innerHTML = `
+                        <strong>${cita.nombre}</strong><br>
+                        ${nuevaFecha} - ${nuevaHora}<br>
+                        <small>${cita.email} | ${cita.telefono}</small>
+                    `;
+                }
+
+                // Cerrar el modal y mostrar notificación
+                modal.style.display = 'none';
+                mostrarNotificacion('Cita modificada exitosamente', 'success');
+
+                // Actualizar el dashboard si está visible
+                if (document.getElementById('dashboard').classList.contains('active')) {
+                    cargarDashboard();
+                }
+            } catch (error) {
+                console.error('Error al modificar la cita:', error);
+                mostrarNotificacion('Error al modificar la cita', 'error');
+            }
+        });
+    }
+
+    // Prellenar el formulario con los datos actuales
+    document.getElementById('nueva-fecha').value = cita.fecha;
+    document.getElementById('nueva-hora').value = cita.hora;
+
+    // Mostrar el modal
+    modal.style.display = 'block';
+}
+
+// Función para mostrar notificaciones
+function mostrarNotificacion(mensaje, tipo) {
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    notificacion.innerHTML = `
+        <i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        <span>${mensaje}</span>
+    `;
+    document.body.appendChild(notificacion);
+
+    // Agregar estilos a la notificación si no existen
+    if (!document.getElementById('estilos-notificacion')) {
+        const style = document.createElement('style');
+        style.id = 'estilos-notificacion';
+        style.textContent = `
+            .notificacion {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                border-radius: 4px;
+                color: white;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                z-index: 1000;
+                animation: slideIn 0.3s ease-out;
+            }
+            .notificacion.success {
+                background-color: #4CAF50;
+            }
+            .notificacion.error {
+                background-color: #f44336;
+            }
+            @keyframes slideIn {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Eliminar la notificación después de 3 segundos
+    setTimeout(() => {
+        notificacion.remove();
+    }, 3000);
 }
