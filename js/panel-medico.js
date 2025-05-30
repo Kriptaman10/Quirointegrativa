@@ -656,22 +656,39 @@ function mostrarModalModificacion(cita) {
         modal.innerHTML = `
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>Modificar Cita</h3>
+                    <h3><i class="fas fa-calendar-edit"></i> Modificar Cita</h3>
                     <button class="btn-cerrar">&times;</button>
                 </div>
                 <div class="modal-body">
                     <form id="form-modificar-cita">
                         <div class="form-group">
-                            <label for="nueva-fecha">Fecha:</label>
+                            <label for="nueva-fecha">
+                                <i class="fas fa-calendar"></i> Fecha:
+                            </label>
                             <input type="date" id="nueva-fecha" required>
                         </div>
-                        <div class="form-group">
-                            <label for="nueva-hora">Hora:</label>
-                            <input type="time" id="nueva-hora" required>
+                        <div class="form-group" style="position:relative;">
+                            <label for="nueva-hora">
+                                <i class="fas fa-clock"></i> Hora:
+                            </label>
+                            <span class="icon-select"><i class="fas fa-clock"></i></span>
+                            <select id="nueva-hora" required>
+                                <option value="17:30">17:30</option>
+                                <option value="18:00">18:00</option>
+                                <option value="18:30">18:30</option>
+                                <option value="19:00">19:00</option>
+                                <option value="19:30">19:30</option>
+                                <option value="20:00">20:00</option>
+                            </select>
+                            <span class="arrow-select"><i class="fas fa-chevron-down"></i></span>
                         </div>
                         <div class="form-actions">
-                            <button type="submit" class="btn-guardar">Guardar cambios</button>
-                            <button type="button" class="btn-cancelar">Cancelar</button>
+                            <button type="submit" class="btn-guardar">
+                                <i class="fas fa-save"></i> Guardar cambios
+                            </button>
+                            <button type="button" class="btn-cancelar">
+                                <i class="fas fa-times"></i> Cancelar
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -682,6 +699,33 @@ function mostrarModalModificacion(cita) {
         // Agregar estilos al modal
         const style = document.createElement('style');
         style.textContent = `
+            .btn-modificar {
+                background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+            }
+            .btn-modificar:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+                background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+            }
+            .btn-modificar:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+            }
+            .btn-modificar i {
+                font-size: 0.9em;
+            }
+
             .modal {
                 display: none;
                 position: fixed;
@@ -691,75 +735,225 @@ function mostrarModalModificacion(cita) {
                 height: 100%;
                 background-color: rgba(0,0,0,0.5);
                 z-index: 1000;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            .modal.show {
+                opacity: 1;
             }
             .modal-content {
                 position: relative;
                 background-color: #fff;
-                margin: 15% auto;
-                padding: 20px;
-                width: 80%;
+                margin: 10% auto;
+                padding: 25px;
+                width: 90%;
                 max-width: 500px;
-                border-radius: 8px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+                transform: translateY(-20px);
+                transition: transform 0.3s ease;
+            }
+            .modal.show .modal-content {
+                transform: translateY(0);
             }
             .modal-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 20px;
+                margin-bottom: 25px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid #f0f0f0;
+            }
+            .modal-header h3 {
+                color: #2196F3;
+                font-size: 1.4rem;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin: 0;
+            }
+            .modal-header h3 i {
+                color: #2196F3;
             }
             .btn-cerrar {
                 background: none;
                 border: none;
-                font-size: 24px;
+                font-size: 28px;
                 cursor: pointer;
                 color: #666;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                transition: all 0.3s ease;
+            }
+            .btn-cerrar:hover {
+                background-color: #f0f0f0;
+                color: #333;
             }
             .form-group {
-                margin-bottom: 15px;
+                margin-bottom: 20px;
             }
             .form-group label {
-                display: block;
-                margin-bottom: 5px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
                 font-weight: 500;
+                color: #333;
+            }
+            .form-group label i {
+                color: #2196F3;
             }
             .form-group input {
                 width: 100%;
-                padding: 8px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
+                padding: 12px;
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+            }
+            .form-group input:focus {
+                border-color: #2196F3;
+                box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+                outline: none;
             }
             .form-actions {
                 display: flex;
                 justify-content: flex-end;
-                gap: 10px;
-                margin-top: 20px;
+                gap: 12px;
+                margin-top: 25px;
             }
             .btn-guardar, .btn-cancelar {
-                padding: 8px 16px;
+                padding: 12px 24px;
                 border: none;
-                border-radius: 4px;
+                border-radius: 8px;
                 cursor: pointer;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+                font-size: 1rem;
             }
             .btn-guardar {
-                background-color: #4CAF50;
+                background-color: #2196F3;
                 color: white;
+                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+            }
+            .btn-guardar:hover {
+                background-color: #1976D2;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
             }
             .btn-cancelar {
-                background-color: #f44336;
-                color: white;
+                background-color: #f5f5f5;
+                color: #666;
+            }
+            .btn-cancelar:hover {
+                background-color: #e0e0e0;
+                color: #333;
+            }
+            @media (max-width: 600px) {
+                .modal-content {
+                    margin: 5% auto;
+                    padding: 20px;
+                }
+                .form-actions {
+                    flex-direction: column;
+                }
+                .btn-guardar, .btn-cancelar {
+                    width: 100%;
+                    justify-content: center;
+                }
+            }
+            .form-group select {
+                width: 100%;
+                padding: 14px 44px 14px 44px;
+                border: 2px solid #2196F3;
+                border-radius: 10px;
+                font-size: 1.15rem;
+                background: #f7fbff;
+                color: #1976D2;
+                font-weight: 600;
+                box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+                transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+                appearance: none;
+                outline: none;
+                cursor: pointer;
+                position: relative;
+            }
+            .form-group select:focus, .form-group select:hover {
+                border-color: #1565c0;
+                background: #e3f2fd;
+                box-shadow: 0 4px 16px rgba(33,150,243,0.13);
+            }
+            .form-group select option {
+                padding: 16px 0;
+                font-size: 1.1rem;
+                color: #1976D2;
+                background: #fff;
+                border-bottom: 1px solid #e3f2fd;
+            }
+            .form-group .icon-select {
+                position: absolute;
+                left: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #2196F3;
+                font-size: 1.3em;
+                pointer-events: none;
+            }
+            .form-group .arrow-select {
+                position: absolute;
+                right: 18px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #2196F3;
+                font-size: 1.2em;
+                pointer-events: none;
             }
         `;
         document.head.appendChild(style);
 
         // Agregar eventos al modal
         modal.querySelector('.btn-cerrar').addEventListener('click', () => {
-            modal.style.display = 'none';
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
         });
 
         modal.querySelector('.btn-cancelar').addEventListener('click', () => {
-            modal.style.display = 'none';
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
         });
+
+        // Prellenar el formulario con los datos actuales
+        document.getElementById('nueva-fecha').value = cita.fecha;
+        const selectHora = document.getElementById('nueva-hora');
+        
+        // Validar que la hora actual esté en el rango permitido
+        const horaActual = cita.hora;
+        const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
+        
+        if (horasValidas.includes(horaActual)) {
+            selectHora.value = horaActual;
+        } else {
+            // Si la hora actual no es válida, seleccionar la más cercana
+            const horaIndex = horasValidas.findIndex(h => h > horaActual);
+            selectHora.value = horaIndex >= 0 ? horasValidas[horaIndex] : horasValidas[0];
+        }
+
+        // Mostrar el modal con animación
+        modal.style.display = 'block';
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
 
         modal.querySelector('form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -807,7 +1001,10 @@ function mostrarModalModificacion(cita) {
                 }
 
                 // Cerrar el modal y mostrar notificación
-                modal.style.display = 'none';
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300);
                 mostrarNotificacion('Cita modificada exitosamente', 'success');
 
                 // Actualizar el dashboard si está visible
@@ -820,13 +1017,6 @@ function mostrarModalModificacion(cita) {
             }
         });
     }
-
-    // Prellenar el formulario con los datos actuales
-    document.getElementById('nueva-fecha').value = cita.fecha;
-    document.getElementById('nueva-hora').value = cita.hora;
-
-    // Mostrar el modal
-    modal.style.display = 'block';
 }
 
 // Función para mostrar notificaciones
