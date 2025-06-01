@@ -1,3 +1,5 @@
+let horarioExtraSeleccionado = null; // Para almacenar el horario extra seleccionado
+let calendar = null; // Instancia global del calendario
 // Configuración de Supabase
 const supabaseConfig = {
     url: 'https://ivneinajrywdljevjgjx.supabase.co',
@@ -177,8 +179,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Función para inicializar el calendario
     function inicializarCalendario() {
-        const calendarEl = document.getElementById('calendar')
-        const calendar = new FullCalendar.Calendar(calendarEl, {
+        const calendarEl = document.getElementById('calendar');
+
+        // Si ya existe una instancia previa, destrúyela para evitar duplicados
+        if (calendar) {
+            calendar.destroy();
+        }
+        calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
             locale: 'es',
             headerToolbar: {
@@ -191,56 +198,163 @@ document.addEventListener('DOMContentLoaded', () => {
             slotDuration: '00:30:00',
             selectable: true,
             selectMirror: true,
+            eventMaxStack: 1,
+            eventOrder: 'tipo,-start',
+            eventOverlap: false,
+            events: async function(fetchInfo, successCallback, failureCallback) {
+                try {
+                    // Cargar citas existentes
+                    const { data: citas, error: errorCitas } = await supabase
+                        .from('citas')
+                        .select('*')
+                        .gte('fecha', fetchInfo.startStr.split('T')[0])
+                        .lte('fecha', fetchInfo.endStr.split('T')[0]);
+
+                    if (errorCitas) throw errorCitas;
+
+                    // Cargar horarios extra
+                    const { data: horariosExtra, error: errorHorarios } = await supabase
+                        .from('horarios_disponibles')
+                        .select('*')
+                        .eq('tipo', 'extra')
+                        .gte('fecha', fetchInfo.startStr.split('T')[0])
+                        .lte('fecha', fetchInfo.endStr.split('T')[0]);
+
+                    if (errorHorarios) throw errorHorarios;
+
+                    let eventos = [];
+
+                    // Agregar citas como eventos
+                    if (citas) {
+                        eventos = citas.map(cita => ({
+                            id: `cita-${cita.id}`,
+                            title: `${cita.nombre} - ${cita.estado}`,
+                            start: `${cita.fecha}T${cita.hora}`,
+                            backgroundColor: cita.estado === 'confirmada' ? '#27ae60' : '#f39c12',
+                            borderColor: cita.estado === 'confirmada' ? '#229954' : '#e67e22',
+                            extendedProps: {
+                                tipo: 'cita',
+                                citaData: cita
+                            }
+                        }));
+                    }
+
+                    // Agregar horarios extra como eventos
+                    if (horariosExtra) {
+                        const eventosHorariosExtra = horariosExtra.map(horario => ({
+                            id: `extra-${horario.id}`,
+                            title: 'Horario Extra Disponible',
+                            start: `${horario.fecha}T${horario.hora}`,
+                            className: 'horario-extra fc-event',
+                            backgroundColor: '#f39c12',
+                            borderColor: '#e67e22',
+                            extendedProps: {
+                                tipo: 'horario_extra',
+                                horarioData: horario
+                            }
+                        }));
+                        // console.log('Eventos de Horarios Extra generados (con fc-event):', eventosHorariosExtra);
+                        eventos = eventos.concat(eventosHorariosExtra);
+                    }
+
+                    successCallback(eventos);
+                } catch (error) {
+                    console.error('Error cargando eventos:', error);
+                    failureCallback(error);
+                }
+            },
+            eventDidMount: function(info) {
+                const tipoEvento = info.event.extendedProps.tipo;
+                // console.log('eventDidMount disparado para tipo:', tipoEvento);
+                if (tipoEvento === 'horario_extra') {
+                    // console.log('eventDidMount detecta horario extra.');
+                    if (info.el) {
+                         // console.log('Elemento de evento encontrado en eventDidMount.', info.el);
+
+                        // Asegurar que el elemento del evento esté por encima y sea clicable
+                        info.el.style.position = 'relative'; // Necesario para z-index
+                        info.el.style.zIndex = '100'; // Asegurar que esté por encima de los slots
+                        info.el.style.pointerEvents = 'auto'; // Asegurar que capture eventos del mouse
+
+                        info.el.style.cursor = 'pointer'; // Cambiar cursor
+
+                        // Adjuntar listener de clic (no mousedown)
+                        info.el.addEventListener('click', function(event) {
+                            console.log('Listener de clic personalizado en eventDidMount disparado.');
+                            // Prevenir propagación para evitar que llegue a elementos subyacentes como los slots
+                            event.stopPropagation();
+
+                            const horarioData = info.event.extendedProps.horarioData;
+                            if (horarioData) {
+                                console.log('Datos de horario extra disponibles en listener:', horarioData);
+                                abrirModalRegistrarPaciente(horarioData);
+                            } else {
+                                console.error('HorarioData no encontrado en listener de clic personalizado.');
+                                mostrarNotificacion('Error al cargar los datos del horario extra', 'error');
+                            }
+                        });
+                    } else {
+                        console.error('Elemento de evento (info.el) no encontrado en eventDidMount para horario extra.');
+                    }
+                }
+            },
             select: async function(info) {
-                const confirmacion = confirm(`¿Desea marcar este horario como disponible?\nFecha: ${info.startStr}\nHora: ${info.start.toLocaleTimeString()}`)
-                if (confirmacion) {
-                    try {
-                        // Obtener hora en formato 24 horas HH:MM:SS
-                        let hora = '';
-                        if (info.start instanceof Date) {
-                            hora = info.start.toTimeString().slice(0, 8);
-                        } else {
-                            hora = convertirAFormato24Horas(info.start.toLocaleTimeString());
-                        }
-                        if (!/^\d{2}:\d{2}:\d{2}$/.test(hora)) {
-                            alert('Formato de hora inválido. Intente nuevamente.');
-                            return;
-                        }
+                const fecha = info.start.toISOString().split('T')[0];
+                const hora = info.start.toTimeString().slice(0, 8);
+                
+                try {
+                    // Verificar horarios existentes (citas o extra) con dos consultas separadas
+                    const { data: citasExistentes, error: errorCitas } = await supabase
+                        .from('citas')
+                        .select('id')
+                        .eq('fecha', fecha)
+                        .eq('hora', hora)
+                        .in('estado', ['pendiente', 'confirmada']);
+
+                    if (errorCitas) throw errorCitas;
+
+                    const { data: extrasExistentes, error: errorExtras } = await supabase
+                        .from('horarios_disponibles')
+                        .select('id')
+                        .eq('fecha', fecha)
+                        .eq('hora', hora)
+                        .eq('tipo', 'extra');
+
+                    if (errorExtras) throw errorExtras;
+
+                    if ((citasExistentes && citasExistentes.length > 0) || (extrasExistentes && extrasExistentes.length > 0)) {
+                        mostrarNotificacion('Ya existe un horario extra o cita en este horario.', 'error');
+                        calendar.unselect();
+                        return;
+                    }
+
+                    const confirmacion = confirm(`¿Desea marcar este horario como disponible?\nFecha: ${fecha}\nHora: ${hora}`);
+                    if (confirmacion) {
                         const horarioNuevo = {
-                            fecha: info.start.toISOString().split('T')[0],
+                            fecha: fecha,
                             hora: hora,
                             estado: 'disponible',
                             tipo: 'extra'
                         };
-                        const { data, error } = await supabase
+                        
+                        const { error: insertError } = await supabase
                             .from('horarios_disponibles')
-                            .insert([horarioNuevo])
-                            .select();
+                            .insert([horarioNuevo]);
 
-                        if (error) throw error;
-
-                        calendar.addEvent({
-                            title: 'Horario Extra',
-                            start: info.start,
-                            end: info.end,
-                            backgroundColor: '#4fc3f7'
-                        });
-                        alert('Horario extra guardado exitosamente.');
-                    } catch (error) {
-                        console.error('Error al guardar horario:', error);
-                        alert('Error al guardar el horario: ' + (error.message || 'Error desconocido.'));
+                        if (insertError) throw insertError;
+                        
+                        mostrarNotificacion('Horario extra guardado exitosamente.', 'success');
+                        calendar.refetchEvents();
                     }
+                } catch (error) {
+                    console.error('Error al verificar/guardar horario:', error);
+                    mostrarNotificacion('Error al procesar el horario: ' + (error.message || 'Error desconocido.'), 'error');
                 }
+                
                 calendar.unselect();
             },
-            eventClick: function(info) {
-                if (confirm('¿Desea eliminar este horario disponible?')) {
-                    info.event.remove()
-                }
-            }
-        })
-
-        calendar.render()
+        });
+        calendar.render();
     }
 
     // Función para cargar la lista de pacientes
@@ -507,6 +621,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cargar el dashboard inicialmente
     cargarDashboard()
+
+    // Verificar si el modal existe, si no, agregarlo dinámicamente
+    if (!document.getElementById('modalRegistrarPaciente')) {
+        const modalHTML = `
+        <div id="modalRegistrarPaciente" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:2000; align-items:center; justify-content:center;">
+          <div style="background:#fff; border-radius:16px; max-width:400px; width:90%; padding:2rem; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+            <button id="cerrarModalRegistrar" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:1.7rem; color:#888; cursor:pointer;">&times;</button>
+            <h2 style="color:#2196F3; margin-bottom:1.2rem; font-size:1.3rem;">Registrar paciente en horario extra</h2>
+            <div id="infoHorarioExtra" style="margin-bottom:1rem; color:#1976D2; font-weight:500;"></div>
+            <form id="formRegistrarPaciente" autocomplete="off">
+              <div class="form-group">
+                <label>Nombre del paciente</label>
+                <input type="text" id="nombrePaciente" required style="width:100%;padding:10px;border-radius:6px;border:1.5px solid #e0e0e0;margin-bottom:1rem;">
+              </div>
+              <div class="form-group">
+                <label>Teléfono</label>
+                <input type="tel" id="telefonoPaciente" required style="width:100%;padding:10px;border-radius:6px;border:1.5px solid #e0e0e0;margin-bottom:1rem;">
+              </div>
+              <div class="form-group">
+                <label>Correo</label>
+                <input type="email" id="emailPaciente" required style="width:100%;padding:10px;border-radius:6px;border:1.5px solid #e0e0e0;margin-bottom:1.5rem;">
+              </div>
+              <button type="submit" style="width:100%;background:#2196F3;color:#fff;padding:12px 0;border:none;border-radius:8px;font-weight:600;font-size:1.1rem;cursor:pointer;transition:background 0.2s;">Registrar</button>
+            </form>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
 })
 
 // Funciones globales para manejar citas
@@ -726,25 +868,32 @@ function mostrarModalModificacion(cita) {
                 font-size: 0.9em;
             }
 
-            .modal {
-                display: none;
+            /* Usar el ID para mayor especificidad y z-index alto */
+            #modalRegistrarPaciente.modal {
+                display: none; /* Valor inicial */
                 position: fixed;
                 top: 0;
                 left: 0;
                 width: 100%;
                 height: 100%;
                 background-color: rgba(0,0,0,0.5);
-                z-index: 1000;
+                z-index: 5000 !important; /* Aumentar z-index */
                 opacity: 0;
                 transition: opacity 0.3s ease;
+                /* Estilos para centrar contenido con Flexbox */
+                display: flex;
+                justify-content: center;
+                align-items: center;
             }
-            .modal.show {
+            #modalRegistrarPaciente.modal.show {
                 opacity: 1;
             }
-            .modal-content {
+            /* Usar el ID para mayor especificidad */
+            #modalRegistrarPaciente .modal-content {
                 position: relative;
                 background-color: #fff;
-                margin: 10% auto;
+                /* Eliminar margin */
+                margin: 0;
                 padding: 25px;
                 width: 90%;
                 max-width: 500px;
@@ -752,8 +901,11 @@ function mostrarModalModificacion(cita) {
                 box-shadow: 0 8px 24px rgba(0,0,0,0.15);
                 transform: translateY(-20px);
                 transition: transform 0.3s ease;
+                /* Limitar altura y agregar scroll */
+                max-height: 95vh;
+                overflow-y: auto;
             }
-            .modal.show .modal-content {
+            #modalRegistrarPaciente.modal.show .modal-content {
                 transform: translateY(0);
             }
             .modal-header {
@@ -950,7 +1102,7 @@ function mostrarModalModificacion(cita) {
         }
 
         // Mostrar el modal con animación
-        modal.style.display = 'block';
+        modal.style.display = 'flex';
         setTimeout(() => {
             modal.classList.add('show');
         }, 10);
@@ -1066,3 +1218,207 @@ function mostrarNotificacion(mensaje, tipo) {
         notificacion.remove();
     }, 3000);
 }
+
+// =================== MODAL Y REGISTRO DE PACIENTE EN HORARIO EXTRA ===================
+
+// Mostrar el modal y rellenar info
+function abrirModalRegistrarPaciente(horarioData) {
+    const modal = document.getElementById('modalRegistrarPaciente');
+    if (!modal) {
+        console.error('Error: Modal #modalRegistrarPaciente no encontrado en el DOM');
+        mostrarNotificacion('Error interno: Modal no encontrado', 'error');
+        return;
+    }
+
+    horarioExtraSeleccionado = horarioData;
+    const infoElement = document.getElementById('infoHorarioExtra');
+    if (infoElement) {
+      const fechaFormateada = new Date(horarioData.fecha + 'T00:00:00').toLocaleDateString('es-CL');
+      infoElement.textContent = `Fecha: ${fechaFormateada} - Hora: ${horarioData.hora.substring(0, 5)}`;
+    } else {
+      console.error('Elemento #infoHorarioExtra no encontrado.');
+    }
+
+    const form = document.getElementById('formRegistrarPaciente');
+    if (form) {
+      form.reset();
+    } else {
+      console.error('Elemento #formRegistrarPaciente no encontrado.');
+    }
+
+    // Forzar estilos críticos con inline styles
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.zIndex = '10001'; // Usar un z-index muy alto
+
+    // Mostrar el modal con display flex
+    modal.style.display = 'flex';
+
+    // Verificar estilos computados inmediatamente
+    const computedStyle = window.getComputedStyle(modal);
+    console.log('Estilos computados del modal (después de inline):', {
+        display: computedStyle.display,
+        justifyContent: computedStyle.justifyContent,
+        alignItems: computedStyle.alignItems,
+        zIndex: computedStyle.zIndex,
+        position: computedStyle.position,
+        top: computedStyle.top,
+        left: computedStyle.left,
+        width: computedStyle.width,
+        height: computedStyle.height
+    });
+    const modalContent = modal.querySelector('.modal-content');
+    if(modalContent) {
+        const contentComputedStyle = window.getComputedStyle(modalContent);
+         console.log('Estilos computados del modal-content (después de inline):', {
+            maxHeight: contentComputedStyle.maxHeight,
+            overflowY: contentComputedStyle.overflowY,
+            marginTop: contentComputedStyle.marginTop,
+            marginBottom: contentComputedStyle.marginBottom,
+            position: contentComputedStyle.position
+         });
+    }
+
+    // La animación de aparición se maneja con la clase show
+    setTimeout(() => {
+        modal.classList.add('show');
+
+        // Verificar estilos computados después de añadir la clase show
+        const computedStyleAfterShow = window.getComputedStyle(modal);
+         console.log('Estilos computados del modal (después de añadir show):', {
+            opacity: computedStyleAfterShow.opacity,
+            display: computedStyleAfterShow.display, // Re-verificar display
+             zIndex: computedStyleAfterShow.zIndex // Re-verificar z-index
+         });
+         const modalContentAfterShow = modal.querySelector('.modal-content');
+         if(modalContentAfterShow) {
+             const contentComputedStyleAfterShow = window.getComputedStyle(modalContentAfterShow);
+              console.log('Estilos computados del modal-content (después de añadir show):', {
+                 transform: contentComputedStyleAfterShow.transform
+              });
+         }
+
+    }, 10);
+}
+
+// Cerrar modal
+function cerrarModalRegistrar() {
+    document.getElementById('modalRegistrarPaciente').style.display = 'none';
+    horarioExtraSeleccionado = null;
+}
+
+// Asegura que los elementos existen antes de agregar listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const cerrarBtn = document.getElementById('cerrarModalRegistrar');
+    if (cerrarBtn) {
+        cerrarBtn.addEventListener('click', cerrarModalRegistrar);
+    }
+    const modal = document.getElementById('modalRegistrarPaciente');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                cerrarModalRegistrar();
+            }
+        });
+    }
+    const form = document.getElementById('formRegistrarPaciente');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!horarioExtraSeleccionado) {
+                mostrarNotificacion('Error: No hay horario seleccionado', 'error');
+                return;
+            }
+            const nombre = document.getElementById('nombrePaciente').value.trim();
+            const email = document.getElementById('emailPaciente').value.trim();
+            const telefono = document.getElementById('telefonoPaciente').value.trim();
+            if (!nombre || !email || !telefono) {
+                mostrarNotificacion('Por favor complete todos los campos', 'error');
+                return;
+            }
+            if (!/^[^@]+@[^@]+\\.[^@]+$/.test(email)) {
+                mostrarNotificacion('Por favor ingrese un email válido', 'error');
+                return;
+            }
+            try {
+                // Verificar que no exista una cita en la misma fecha y hora
+                const { data: citasExistentes, error: errorVerificacion } = await supabase
+                    .from('citas')
+                    .select('id')
+                    .eq('fecha', horarioExtraSeleccionado.fecha)
+                    .eq('hora', horarioExtraSeleccionado.hora)
+                    .in('estado', ['pendiente', 'confirmada']);
+                if (errorVerificacion) throw errorVerificacion;
+                if (citasExistentes && citasExistentes.length > 0) {
+                    mostrarNotificacion('Ya existe una cita registrada en este horario', 'error');
+                    return;
+                }
+                // Insertar nueva cita
+                const { error } = await supabase
+                    .from('citas')
+                    .insert([{
+                        nombre: nombre,
+                        email: email,
+                        telefono: telefono,
+                        fecha: horarioExtraSeleccionado.fecha,
+                        hora: horarioExtraSeleccionado.hora,
+                        estado: 'confirmada'
+                    }]);
+                if (error) throw error;
+                // Eliminar el horario extra
+                await supabase
+                    .from('horarios_disponibles')
+                    .delete()
+                    .eq('id', horarioExtraSeleccionado.id);
+                mostrarNotificacion('Paciente registrado exitosamente', 'success');
+                cerrarModalRegistrar();
+                // Actualizar el calendario
+                if (typeof calendar !== 'undefined' && calendar.refetchEvents) {
+                    calendar.refetchEvents();
+                }
+            } catch (error) {
+                console.error('Error registrando paciente:', error);
+                mostrarNotificacion('Error al registrar el paciente: ' + error.message, 'error');
+            }
+        });
+    }
+});
+
+// =================== FIN MODAL Y REGISTRO DE PACIENTE EN HORARIO EXTRA ===================
+
+// Función de notificación simple (ajusta si ya tienes una)
+function mostrarNotificacion(mensaje, tipo) {
+    const notificacion = document.createElement('div');
+    notificacion.className = `notificacion ${tipo}`;
+    notificacion.textContent = mensaje;
+    notificacion.style.cssText = `
+        position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 6px;
+        color: white; font-weight: 500; z-index: 10000; max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        ${tipo === 'success' ? 'background-color: #27ae60;' : 'background-color: #e74c3c;'}
+    `;
+    document.body.appendChild(notificacion);
+    setTimeout(() => { if (notificacion.parentNode) notificacion.parentNode.removeChild(notificacion); }, 4000);
+}
+
+// Cerrar modal con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        cerrarModalRegistrar();
+    }
+});
+
+// Cerrar modal al hacer click fuera
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('modalRegistrarPaciente');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                cerrarModalRegistrar();
+            }
+        });
+    }
+});
