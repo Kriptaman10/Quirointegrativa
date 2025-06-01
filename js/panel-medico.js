@@ -288,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (horarioData) {
                                 console.log('Datos de horario extra disponibles en listener:', horarioData);
                                 abrirModalRegistrarPaciente(horarioData);
-                            } else {
+                        } else {
                                 console.error('HorarioData no encontrado en listener de clic personalizado.');
                                 mostrarNotificacion('Error al cargar los datos del horario extra', 'error');
                             }
@@ -325,8 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if ((citasExistentes && citasExistentes.length > 0) || (extrasExistentes && extrasExistentes.length > 0)) {
                         mostrarNotificacion('Ya existe un horario extra o cita en este horario.', 'error');
                         calendar.unselect();
-                        return;
-                    }
+                            return;
+                        }
 
                     const confirmacion = confirm(`¿Desea marcar este horario como disponible?\nFecha: ${fecha}\nHora: ${hora}`);
                     if (confirmacion) {
@@ -346,10 +346,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         mostrarNotificacion('Horario extra guardado exitosamente.', 'success');
                         calendar.refetchEvents();
                     }
-                } catch (error) {
+                    } catch (error) {
                     console.error('Error al verificar/guardar horario:', error);
                     mostrarNotificacion('Error al procesar el horario: ' + (error.message || 'Error desconocido.'), 'error');
-                }
+                    }
                 
                 calendar.unselect();
             },
@@ -1115,7 +1115,7 @@ function mostrarModalModificacion(cita) {
             try {
                 // Verificar disponibilidad
                 const { data: citasExistentes, error: errorConsulta } = await supabase
-                    .from('citas')
+            .from('citas')
                     .select('id')
                     .eq('fecha', nuevaFecha)
                     .eq('hora', nuevaHora)
@@ -1163,7 +1163,7 @@ function mostrarModalModificacion(cita) {
                 if (document.getElementById('dashboard').classList.contains('active')) {
                     cargarDashboard();
                 }
-            } catch (error) {
+    } catch (error) {
                 console.error('Error al modificar la cita:', error);
                 mostrarNotificacion('Error al modificar la cita', 'error');
             }
@@ -1339,7 +1339,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 mostrarNotificacion('Por favor complete todos los campos', 'error');
                 return;
             }
-            if (!/^[^@]+@[^@]+\\.[^@]+$/.test(email)) {
+            if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
                 mostrarNotificacion('Por favor ingrese un email válido', 'error');
                 return;
             }

@@ -294,11 +294,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.addEventListener('citaGuardada', async (e) => {
         console.log('Evento citaGuardada recibido:', e.detail);
         try {
-            const nuevasCitas = await cargarCitasExistentes();
-            calendario.removeAllEvents();
-            calendario.addEventSource(nuevasCitas);
+                    const nuevasCitas = await cargarCitasExistentes();
+                    calendario.removeAllEvents();
+                    calendario.addEventSource(nuevasCitas);
             console.log('Calendario actualizado exitosamente');
-        } catch (error) {
+                } catch (error) {
             console.error('Error al actualizar calendario:', error);
         }
     });
