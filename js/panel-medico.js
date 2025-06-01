@@ -541,27 +541,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (error) throw error
 
-            // Recargar las valoraciones
-            cargarValoraciones()
+            // Encontrar el elemento de la valoración en la UI y actualizar su estado
+            const valoracionElement = document.querySelector(`.review-item[data-id='${id}']`);
+            if (valoracionElement) {
+                const statusBadge = valoracionElement.querySelector('.review-status');
+                if (statusBadge) {
+                    statusBadge.textContent = 'aprobado';
+                    statusBadge.className = 'review-status status-aprobado';
+                }
+                // Ocultar o eliminar los botones de acción (Aprobar/Rechazar)
+                const reviewActions = valoracionElement.querySelector('.review-actions');
+                 if (reviewActions) {
+                     reviewActions.style.display = 'none';
+                 }
+            }
+            mostrarNotificacion('Valoración aprobada exitosamente', 'success');
+
         } catch (error) {
-            console.error('Error al aprobar la valoración:', error)
+            console.error('Error al aprobar la valoración:', error);
+             mostrarNotificacion('Error al aprobar la valoración', 'error');
         }
     }
 
     // Función para rechazar una valoración
     async function rechazarValoracion(id) {
+        console.log('Intentando rechazar valoración con ID:', id);
         try {
             const { error } = await supabase
                 .from('valoraciones')
-                .update({ estado: 'rechazado' })
+                .delete()
                 .eq('id', id)
 
-            if (error) throw error
+            if (error) {
+                console.error('Error de Supabase al eliminar valoración:', error);
+                throw new Error(`Error de Supabase: ${error.message}`);
+            }
 
-            // Recargar las valoraciones
-            cargarValoraciones()
+            console.log('Valoración eliminada de Supabase con ID:', id);
+
+            // Eliminar el elemento de la valoración de la UI
+            const valoracionElement = document.querySelector(`.review-item[data-id='${id}']`);
+            if (valoracionElement) {
+                valoracionElement.remove();
+                console.log('Elemento de valoración eliminado de la UI con ID:', id);
+            }
+            mostrarNotificacion('Valoración rechazada y eliminada exitosamente', 'success');
+
         } catch (error) {
-            console.error('Error al rechazar la valoración:', error)
+            console.error('Error general al rechazar la valoración:', error);
+             mostrarNotificacion('Error al rechazar la valoración: ' + error.message, 'error');
         }
     }
 
