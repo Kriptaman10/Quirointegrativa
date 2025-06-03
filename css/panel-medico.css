@@ -643,4 +643,223 @@ body {
 .btn-review:hover {
     transform: translateY(-2px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para los modales */
+#modal-modificar-cita.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 10000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#modal-modificar-cita.modal.show {
+    opacity: 1;
+    display: flex;
+}
+
+#modal-modificar-cita .modal-content {
+    position: relative;
+    background-color: #fff;
+    margin: 0;
+    padding: 25px;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9000;
+}
+
+/* Estilos generales para modales (aplican a ambos) */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--medium-gray);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--secondary);
+    font-size: 1.5em;
+    font-weight: 600;
+}
+
+.btn-cerrar, .modal-close {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.btn-cerrar:hover, .modal-close:hover {
+    background-color: var(--light-gray);
+    color: var(--text-color);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--medium-gray);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 30px;
+}
+
+.btn-guardar, .btn-confirmar {
+    background-color: var(--success);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-guardar:hover, .btn-confirmar:hover {
+    background-color: #218838;
+    transform: translateY(-1px);
+}
+
+.btn-guardar:active, .btn-confirmar:active {
+    transform: translateY(0);
+}
+
+.btn-cancelar {
+    background-color: var(--medium-gray);
+    color: var(--text-color);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-cancelar:hover {
+    background-color: var(--dark-gray);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.btn-cancelar:active {
+    transform: translateY(0);
+}
+
+/* Estilos específicos para el modal de registro de paciente */
+#modalRegistrarPaciente .modal-content {
+    position: relative;
+    background-color: #fff;
+    margin: 0;
+    padding: 25px;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+#infoHorarioExtra {
+    padding: 15px 25px;
+    background-color: #fff;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--medium-gray);
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+#modalRegistrarPaciente .modal-content .modal-body form {
+    padding: 25px;
+    background-color: #f8f9fa;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border: none;
+    margin: 0;
+}
+
+/* Asegurar que no haya conflictos con otros elementos */
+#calendar {
+    position: relative;
+    z-index: 1;
+}
+
+/* Prevenir scroll del body cuando el modal está abierto */
+body.modal-open {
+    overflow: hidden;
 } 

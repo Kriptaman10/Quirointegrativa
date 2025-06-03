@@ -194,12 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
         botonEnviar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
 
         try {
-            const datosFormulario = {
-                nombre: document.getElementById('nombre-paciente').value,
-                telefono: document.getElementById('telefono-paciente').value,
-                email: document.getElementById('email-paciente').value,
-                fecha: document.getElementById('fecha').value,
-                hora: document.getElementById('hora').value
+        const datosFormulario = {
+            nombre: document.getElementById('nombre-paciente').value,
+            telefono: document.getElementById('telefono-paciente').value,
+            email: document.getElementById('email-paciente').value,
+            fecha: document.getElementById('fecha').value,
+            hora: document.getElementById('hora').value
             };
 
             console.log('Datos del formulario:', datosFormulario);

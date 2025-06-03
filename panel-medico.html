@@ -138,5 +138,43 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/locales/es.global.min.js'></script>
     <script src="js/panel-medico.js"></script>
+    <!-- Modal para registrar paciente en horario extra -->
+<div id="modalRegistrarPaciente" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Registrar Paciente en Horario Extra</h3>
+            <button class="modal-close" onclick="cerrarModalRegistrar()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="infoHorarioExtra" class="info-horario"></p>
+            
+            <form id="formRegistrarPaciente">
+                <div class="form-group">
+                    <label for="nombrePaciente">Nombre completo *</label>
+                    <input type="text" id="nombrePaciente" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="emailPaciente">Email *</label>
+                    <input type="email" id="emailPaciente" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="telefonoPaciente">Teléfono *</label>
+                    <input type="tel" id="telefonoPaciente" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" onclick="cerrarModalRegistrar()" class="btn-cancelar">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-confirmar">
+                        Registrar Paciente
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </body>
 </html> 
