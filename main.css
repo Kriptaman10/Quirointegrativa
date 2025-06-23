@@ -988,7 +988,8 @@ body {
 }
 
 .fc .fc-timegrid-slot {
-    height: 2.5em !important;
+    /*ajustado brevemente el tamaño*/
+    height: 3rem !important;
 }
 
 /* Estilos para eventos ocupados */
