@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const nombreInput = document.getElementById('nombre-paciente');
     const telefonoInput = document.getElementById('telefono-paciente');
     const emailInput = document.getElementById('email-paciente');
+    const rutInput = document.getElementById('rut-paciente');
+    const fechaNacimientoInput = document.getElementById('fecha-nacimiento');
 
     // Validación en tiempo real y al salir del campo
     nombreInput.addEventListener('input', validarNombre);
@@ -11,6 +13,10 @@ document.addEventListener('DOMContentLoaded', function() {
     telefonoInput.addEventListener('blur', validarTelefono);
     emailInput.addEventListener('input', validarEmail);
     emailInput.addEventListener('blur', validarEmail);
+    rutInput.addEventListener('input', validarRut);
+    rutInput.addEventListener('blur', validarFechaNacimiento);
+    fechaNacimientoInput.addEventListener('input', validarFechaNacimiento);
+    fechaNacimientoInput.addEventListener('blur', validarFechaNacimiento);
 
     formulario.addEventListener('submit', function(event) {
         event.preventDefault();
@@ -18,7 +24,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const nombreValido = validarNombre();
         const telefonoValido = validarTelefono();
         const emailValido = validarEmail();
-        if (nombreValido && telefonoValido && emailValido) {
+        const rutValido = validarRut();
+        const fechaNacimientoValido = validarFechaNacimiento();
+
+        if (nombreValido && telefonoValido && emailValido && rutValido && fechaNacimientoValido) {
             enviarFormulario();
         }
     });
@@ -78,6 +87,55 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return true;
     }
+
+    function validarRut() {
+        const rutInput = document.getElementById('rut-paciente');
+        const rut = rutInput.value.trim();
+        const errorRut = document.getElementById('error-rut');
+        errorRut.textContent = '';
+
+        if (rut === '') {
+            errorRut.textContent = 'Este campo es obligatorio';
+            return false;
+        }
+
+        const regex = /^[0-9]{1,8}-[0-9Kk]{1}$/;
+        if (!regex.test(rut)) {
+            errorRut.textContent = 'Ingrese un RUT válido, con formato: 12345678-9';
+            return false;
+        }
+
+        const rutLength = rut.replace('-', '').length;
+        if (rutLength < 8 || rutLength > 10) {
+            errorRut.textContent = 'El RUT debe contener entre 8 y 10 dígitos';
+            return false;
+        }
+
+        return true;
+    }
+
+    function validarFechaNacimiento() {
+        const fechaNacimientoInput = document.getElementById('fecha-nacimiento');
+        const fechaNacimiento = fechaNacimientoInput.value.trim();
+        const errorFechaNacimiento = document.getElementById('error-fecha-nacimiento');
+        errorFechaNacimiento.textContent = '';
+
+        if (fechaNacimiento === '') {
+            errorFechaNacimiento.textContent = 'Este campo es obligatorio';
+            return false;
+        }
+
+        const hoy = new Date();
+        const fechaSeleccionada = new Date(fechaNacimiento);
+
+        if (fechaSeleccionada > hoy) {
+            errorFechaNacimiento.textContent = 'La fecha seleccionada no es válida';
+            return false;
+        }
+
+        return true;
+    }
+
 
     function limpiarMensajesError() {
         const mensajesError = document.querySelectorAll('.mensaje-error');

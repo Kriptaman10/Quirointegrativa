@@ -199,7 +199,9 @@ document.addEventListener('DOMContentLoaded', () => {
             telefono: document.getElementById('telefono-paciente').value,
             email: document.getElementById('email-paciente').value,
             fecha: document.getElementById('fecha').value,
-            hora: document.getElementById('hora').value
+            hora: document.getElementById('hora').value,
+            rut: document.getElementById('rut-paciente').value,
+            fechaNacimiento: document.getElementById('fecha-nacimiento').value
             };
 
             console.log('Datos del formulario:', datosFormulario);

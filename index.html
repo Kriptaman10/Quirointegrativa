@@ -103,6 +103,24 @@
                         </div>
                     </div>
                     
+                    <div class="grupo-formulario">
+                        <label for="rut-paciente">
+                            <i class="fas fa-id-card"></i> RUT
+                        </label>
+                        <input type="text" id="rut-paciente" name="rut" required 
+                            pattern="[0-9]{1,8}-[0-9Kk]{1}" 
+                            title="Formato: 12345678-9 o 12345678-K">
+                        <div class="mensaje-error" id="error-rut"></div>
+                    </div>
+
+                    <div class="grupo-formulario">
+                        <label for="fecha-nacimiento">
+                            <i class="fas fa-calendar-alt"></i> Fecha de Nacimiento
+                        </label>
+                        <input type="date" id="fecha-nacimiento" name="fecha_nacimiento" required>
+                        <div class="mensaje-error" id="error-fecha-nacimiento"></div>
+                    </div>
+                    
                     <!-- Campos ocultos para fecha y hora -->
                     <input type="hidden" id="fecha" required>
                     <input type="hidden" id="hora" required>
