@@ -14,7 +14,8 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="main.css">
     <link rel="stylesheet" href="css/panel-admin.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css" />
+    <!-- CAMBIO: Se agregó el link a FullCalendar v6+ moderno (no jQuery) -->   
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
 </head>
 <body>
     <!-- Header -->
@@ -84,37 +85,53 @@
             </section>
 
             <!-- Sección de Gestión de Citas -->
+            <!-- Añadido estilos -->
             <section class="seccion-citas">
                 <h2>Gestión de Citas</h2>
-                <button id="btn-agregar-cita">Agregar Nueva Cita</button>
+                <button id="btn-agregar-cita" class="boton-agendar" style="margin-bottom:1.5rem;">
+                    <i class="fas fa-calendar-plus"></i> Agregar Nueva Cita
+                </button>
                 <div id="formulario-cita" style="display: none;">
                     <h3>Formulario de Nueva Cita</h3>
-                    <form id="form-agendar-cita">
-                        <label for="nombre-paciente">Nombre:</label>
-                        <input type="text" id="nombre-paciente" required>
-                        
-                        <label for="telefono-paciente">Teléfono:</label>
-                        <input type="text" id="telefono-paciente" required>
-                        
-                        <label for="email-paciente">Email:</label>
-                        <input type="email" id="email-paciente" required>
-                        
-                        <label for="rut-paciente">RUT:</label>
-                        <input type="text" id="rut-paciente" required>
-                        
-                        <label for="fecha-nacimiento">Fecha de Nacimiento:</label>
-                        <input type="date" id="fecha-nacimiento" required>
-                        
-                        <label for="fecha-cita">Fecha de Cita:</label>
-                        <input type="date" id="fecha-cita" required>
-                        
-                        <label for="hora-cita">Hora de Cita:</label>
-                        <input type="time" id="hora-cita" required>
-                        
-                        <button type="submit">Agendar Cita</button>
+                    <form id="form-agendar-cita" class="formulario-citas">
+                        <div class="grid-formulario">
+                            <div class="grupo-formulario">
+                                <label for="nombre-paciente"><i class="fas fa-user"></i> Nombre:</label>
+                                <input type="text" id="nombre-paciente" required>
+                            </div>
+                            <div class="grupo-formulario">
+                                <label for="telefono-paciente"><i class="fas fa-phone"></i> Teléfono:</label>
+                                <input type="text" id="telefono-paciente" required>
+                            </div>
+                            <div class="grupo-formulario">
+                                <label for="email-paciente"><i class="fas fa-envelope"></i> Email:</label>
+                                <input type="email" id="email-paciente" required>
+                            </div>
+                            <div class="grupo-formulario">
+                                <label for="rut-paciente"><i class="fas fa-id-card"></i> RUT:</label>
+                                <input type="text" id="rut-paciente" required>
+                            </div>
+                            <div class="grupo-formulario">
+                                <label for="fecha-nacimiento"><i class="fas fa-calendar-alt"></i> Fecha de Nacimiento:</label>
+                                <input type="date" id="fecha-nacimiento" required>
+                            </div>
+                            <div class="grupo-formulario">
+                                <label for="fecha-cita"><i class="fas fa-calendar"></i> Fecha de Cita:</label>
+                                <input type="date" id="fecha-cita" required>
+                            </div>
+                            <div class="grupo-formulario">
+                                <label for="hora-cita"><i class="fas fa-clock"></i> Hora de Cita:</label>
+                                <input type="time" id="hora-cita" required>
+                            </div>
+                        </div>
+                        <div class="acciones-formulario">
+                            <button type="submit" class="boton-agendar">
+                                <i class="fas fa-calendar-check"></i> Agendar Cita
+                            </button>
+                        </div>
                     </form>
                 </div>
-                <div id="calendario"></div>
+                <div id="calendario" style="margin-top:2.5rem"></div>
             </section>
         </div>
     </main>
@@ -128,9 +145,10 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
+
+    <!-- CAMBIO: Se agregó el script de FullCalendar v6+ moderno -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/locales/es.global.min.js"></script>
     <script>
         // Inicialización de Supabase
         window.supabaseClient = supabase.createClient(

@@ -140,6 +140,7 @@ async function eliminarHorarioExtra(id) {
     }
 }
 
+/*
 // Funciones para gestionar citas
 $(document).ready(function() {
     // Inicializar el calendario
@@ -227,9 +228,84 @@ $(document).ready(function() {
         }
     });
 });
+*/
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+
+    // CALENDARIO
+    const calendarEl = document.getElementById('calendario');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        slotMinTime: '08:00:00',
+        slotMaxTime: '20:30:00',
+        slotDuration: '00:30:00',
+
+        allDaySlot: false,
+        businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5], // Lunes a Viernes
+            startTime: '08:00',
+            endTime: '20:00'
+        },
+
+        unselectAuto: false,        
+        selectable: true,
+        selectMirror: true,
+        eventMaxStack: 1,
+        eventOrder: 'tipo,-start',
+        eventOverlap: false,
+        events: async function(fetchInfo, successCallback, failureCallback) {
+            try {
+                // Cargar citas desde Supabase
+                const { data: citas, error } = await supabaseClient
+                    .from('citas')
+                    .select('*')
+                    .gte('fecha', fetchInfo.startStr.split('T')[0])
+                    .lte('fecha', fetchInfo.endStr.split('T')[0]);
+                if (error) throw error;
+
+                // Puedes agregar aquí horarios extra si lo deseas, como en panel-medico.js
+
+                const eventos = citas.map(cita => ({
+                    id: `cita-${cita.id}`,
+                    title: cita.nombre,
+                    start: `${cita.fecha}T${cita.hora}`,
+                    backgroundColor: '#2196F3',
+                    borderColor: '#1976D2',
+                    extendedProps: {
+                        citaData: cita
+                    }
+                }));
+
+                successCallback(eventos);
+            } catch (error) {
+                console.error('Error cargando eventos:', error);
+                failureCallback(error);
+            }
+        },
+        select: function(info) {
+            // Al seleccionar un slot, rellenar el formulario
+            document.getElementById('fecha-cita').value = info.startStr.split('T')[0];
+            document.getElementById('hora-cita').value = info.startStr.split('T')[1]?.substring(0,5) || '';
+        }
+    });
+    calendar.render();
+
+    //BOTÓN PARA AGENDAR CITA EN PANEL ADMIN
+    const btnAgregarCita = document.getElementById('btn-agregar-cita');
+    const formularioCita = document.getElementById('formulario-cita');
+    if (btnAgregarCita && formularioCita) {
+        btnAgregarCita.addEventListener('click', () => {
+            formularioCita.style.display = formularioCita.style.display === 'none' ? 'block' : 'none';
+        });
+    }
+    
     // Cargar horarios al iniciar
     cargarHorariosExtra();
     
