@@ -155,3 +155,21 @@ app.get('/api/disponibilidad', async (req, res) => {
 app.listen(port, () => {
     console.log(`Servidor corriendo en http://localhost:${port}`);
 }); 
+
+async function enviarCorreoCita(pacienteEmail, citaInfo) {
+    const mailOptions = {
+        from: 'tu-email@gmail.com',
+        to: pacienteEmail,
+        subject: 'Confirmación de Cita Médica',
+        html: `
+            <h1>Confirmación de Cita</h1>
+            <p>Estimado paciente,</p>
+            <p>Su cita ha sido confirmada para el ${citaInfo.fecha} a las ${citaInfo.hora}.</p>
+            <p>Si desea cambiar o cancelar su cita, haga clic en el siguiente enlace:</p>
+            <p><a href="http://tu-dominio.com/cambiar-cancelar-cita.html">Cambiar o Cancelar Cita</a></p>
+            <p>Saludos,</p>
+            <p>Quirointegrativa</p>
+        `
+    };
+    await transporter.sendMail(mailOptions);
+}
