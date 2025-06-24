@@ -19,11 +19,11 @@ app.use(express.static('.')); // Servir archivos estáticos
 
 // Ruta para guardar una nueva cita
 app.post('/api/citas', async (req, res) => {
-    const { nombre, telefono, email, fecha, hora } = req.body;
+    const { nombre, telefono, email, rut, fechaNacimiento, fecha, hora } = req.body;
     
-    console.log('Intentando crear cita:', { nombre, telefono, email, fecha, hora });
+    console.log('Intentando crear cita:', { nombre, telefono, email, rut, fechaNacimiento, fecha, hora });
 
-    if (!nombre || !telefono || !email || !fecha || !hora) {
+    if (!nombre || !telefono || !email || !fecha || !hora || !rut || !fechaNacimiento) {
         console.error('Faltan campos requeridos');
         return res.status(400).json({
             error: 'Todos los campos son requeridos'
