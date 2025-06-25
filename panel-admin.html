@@ -46,43 +46,6 @@
         <div class="container">
             <h1 class="titulo-panel">Panel de Administración</h1>
             
-            <!-- Sección de Horarios Extra -->
-            <section class="seccion-horarios">
-                <h2>Gestión de Horarios Extra</h2>
-                
-                <!-- Formulario para agregar horario extra -->
-                <form id="formulario-horario-extra" class="formulario-horario">
-                    <div class="grid-formulario">
-                        <div class="grupo-formulario">
-                            <label for="fecha-extra">
-                                <i class="fas fa-calendar"></i> Fecha
-                            </label>
-                            <input type="date" id="fecha-extra" name="fecha" required>
-                        </div>
-                        
-                        <div class="grupo-formulario">
-                            <label for="hora-extra">
-                                <i class="fas fa-clock"></i> Hora
-                            </label>
-                            <input type="time" id="hora-extra" name="hora" required>
-                        </div>
-                    </div>
-                    
-                    <div class="acciones-formulario">
-                        <button type="submit" class="boton-agregar">
-                            <i class="fas fa-plus"></i> Agregar Horario Extra
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Lista de horarios extra -->
-                <div class="lista-horarios-extra">
-                    <h3>Horarios Extra Programados</h3>
-                    <div id="tabla-horarios-extra" class="tabla-horarios">
-                        <!-- Los horarios se cargarán dinámicamente -->
-                    </div>
-                </div>
-            </section>
 
             <!-- Sección de Gestión de Citas -->
             <!-- Añadido estilos -->
@@ -133,6 +96,21 @@
                 </div>
                 <div id="calendario" style="margin-top:2.5rem"></div>
             </section>
+
+
+            <!-- Sección de Horarios Extra -->
+            <section class="seccion-horarios">
+
+                <!-- Lista de horarios extra -->
+                <div class="lista-horarios-extra">
+                    <h3>Horarios Extra Programados</h3>
+                    <div id="tabla-horarios-extra" class="tabla-horarios">
+                        <!-- Los horarios se cargarán dinámicamente -->
+                    </div>
+                </div>
+            </section>
+
+            
         </div>
     </main>
 
