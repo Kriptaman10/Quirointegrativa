@@ -183,10 +183,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
     calendar.render();
 
-    // Manejar el envío del formulario
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        // Aquí va la lógica de envío del formulario
+
+        // Obtén los valores del formulario
+        const nombre = form.querySelector('[name="nombre"]').value;
+        const email = form.querySelector('[name="email"]').value;
+        const telefono = form.querySelector('[name="telefono"]').value;
+        const fecha = dateInput.value;
+        const hora = timeInput.value;
+
+        // Puedes agregar validaciones aquí si lo deseas
+
+        // Envía los datos a Supabase
+        const { data, error } = await supabase
+            .from('citas')
+            .insert([
+                {
+                    nombre,
+                    email,
+                    telefono,
+                    fecha,
+                    hora,
+                    estado: 'pendiente' // o el estado que corresponda
+                }
+            ]);
+
+        if (error) {
+            alert('Error al agendar la cita: ' + error.message);
+        } else {
+            alert('¡Cita agendada con éxito!');
+            // Opcional: recargar eventos del calendario
+            calendar.refetchEvents();
+            // Limpiar formulario y selección
+            form.reset();
+            selectedSlotEl.style.display = 'none';
+            dateInput.value = '';
+            timeInput.value = '';
+            submitButton.disabled = true;
+        }
     });
 
     // Mantener la selección cuando el formulario recibe el foco
