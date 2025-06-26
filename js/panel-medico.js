@@ -25,17 +25,88 @@ document.addEventListener('DOMContentLoaded', () => {
         return
     }
 
+    // Función para capitalizar la primera letra de cada palabra
+    function capitalizarNombre(nombre) {
+        return nombre
+            .split(' ')
+            .map(palabra =>
+                palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
+            )
+            .join(' ');
+    }
+
+    // Presionar el logo para volver al dashboard
+    const logo = document.querySelector('.logo');
+    if (logo) {
+        logo.style.cursor = 'pointer';
+        logo.addEventListener('click', () => {
+            // Activar tab dashboard
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            const dashboardNav = document.querySelector('.nav-item[data-tab="dashboard"]');
+            if (dashboardNav) dashboardNav.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            const dashboardTab = document.getElementById('dashboard');
+            if (dashboardTab) dashboardTab.classList.add('active');
+            // Opcional: recargar dashboard
+            if (typeof cargarDashboard === 'function') cargarDashboard();
+        });
+    }
+
     // Configurar nombre del médico
     const nombreMedico = localStorage.getItem('nombreMedico')
-    document.getElementById('nombre-medico').textContent = nombreMedico
-    document.getElementById('welcome-name').textContent = nombreMedico.split(' ')[0]
+    const nombreCapitalizado = capitalizarNombre(nombreMedico)
+    document.getElementById('nombre-medico').innerHTML = `<i class="fas fa-user" style="margin-right:7px; color:#05213c;"></i> ${nombreCapitalizado}`;
+    document.getElementById('welcome-name').textContent = nombreCapitalizado.split(' ')[0]
 
-    // Manejar cierre de sesión
-    document.getElementById('btn-logout').addEventListener('click', () => {
-        localStorage.removeItem('medicoLogueado')
-        localStorage.removeItem('nombreMedico')
-        window.location.href = 'login-medico.html'
-    })
+    // Modal de confirmación de logout
+    function mostrarModalLogout() {
+        // Si ya existe, solo mostrarlo
+        let modal = document.getElementById('modalLogout');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modalLogout';
+            modal.innerHTML = `
+                <div class="modal-logout-content">
+                    <h3><i class="fas fa-sign-out-alt"></i> ¿Cerrar sesión?</h3>
+                    <p>¿Seguro que deseas cerrar sesión?</p>
+                    <div class="modal-logout-actions">
+                        <button id="btnLogoutCancelar" class="btn-cancelar">Cancelar</button>
+                        <button id="btnLogoutConfirmar" class="btn-confirmar">Cerrar sesión</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            // Elimina la parte de creación de <style>
+        }
+        modal.style.display = 'flex';
+
+        // Eventos
+        document.getElementById('btnLogoutCancelar').onclick = () => {
+            modal.style.display = 'none';
+        };
+        document.getElementById('btnLogoutConfirmar').onclick = () => {
+            localStorage.removeItem('medicoLogueado');
+            localStorage.removeItem('nombreMedico');
+            window.location.href = 'login-medico.html';
+        };
+        // Cerrar con ESC
+        document.addEventListener('keydown', function escListener(e) {
+            if (e.key === 'Escape') {
+                modal.style.display = 'none';
+                document.removeEventListener('keydown', escListener);
+            }
+        });
+        // Cerrar al hacer click fuera del modal
+        modal.onclick = function(e) {
+            if (e.target === modal) modal.style.display = 'none';
+        };
+    }
+
+    // Reemplaza el listener de logout por el modal bonito
+    document.getElementById('btn-logout').addEventListener('click', (e) => {
+        e.preventDefault();
+        mostrarModalLogout();
+    });
 
     // Manejar navegación por tabs
     const navItems = document.querySelectorAll('.nav-item')
@@ -71,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     cargarValoraciones()
                     break
             }
+            // --- Agrega esta línea para hacer scroll al top ---
+            window.scrollTo({ top: 0, behavior: 'auto' });
         })
     })
 
@@ -147,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appointmentsList.innerHTML = citas?.length
                 ? `<div class="appointment-list">
                     ${citas.map(cita => `
-                        <div class="cita" data-id="${cita.id}" data-nombre="${cita.nombre}" data-email="${cita.email}" data-fecha="${cita.fecha}" data-hora="${cita.hora}">
+                        <div class="cita" data-id="${cita.id}" data-nombre="${cita.nombre}" data-email="${cita.email}" data-fecha="${cita.fecha}" data-hora="${cita.hora}" data-telefono="${cita.telefono}">
                             <div>
                                 <strong>${cita.nombre}</strong><br>
                                 ${cita.fecha} - ${cita.hora}<br>
@@ -405,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ${iniciales}
                                 </div>
                                 <div class="patient-info">
-                                    <h3>${paciente.nombre}</h3>
+                                    <h3>${capitalizarNombre(paciente.nombre)}</h3>
                                     <small>Paciente #${Math.floor(Math.random() * 10000)}</small>
                                 </div>
                             </div>
@@ -494,12 +567,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const estrellas = '★'.repeat(valoracion.estrellas) + '☆'.repeat(5 - valoracion.estrellas)
 
                     return `
-                        <div class="review-item">
+                        <div class="review-item" data-id="${valoracion.id}">
                             <div class="review-header">
                                 <div class="review-user">
                                     <div class="review-avatar">${iniciales}</div>
                                     <div class="review-info">
-                                        <h3>${valoracion.nombre}</h3>
+                                        <h3>${capitalizarNombre(valoracion.nombre)}</h3>
                                         <small>${valoracion.email}</small>
                                     </div>
                                 </div>
@@ -613,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const emailPaciente = citaElement.dataset.email;
             const fechaCita = citaElement.dataset.fecha;
             const horaCita = citaElement.dataset.hora;
+            const telefonoPaciente = citaElement.dataset.telefono;
 
             // Basic validation for data attributes
             if (!citaId || !nombrePaciente || !emailPaciente || !fechaCita || !horaCita) {
@@ -627,7 +701,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     nombre: nombrePaciente,
                     email: emailPaciente,
                     fecha: fechaCita,
-                    hora: horaCita
+                    hora: horaCita,
+                    telefono: telefonoPaciente
                 });
             } else if (clickedButton.classList.contains('btn-confirmar')) {
                 if (window.confirmarCita) {
@@ -817,386 +892,143 @@ function convertirAFormato24Horas(hora12) {
 
 // Función para mostrar el modal de modificación
 function mostrarModalModificacion(cita) {
-    // Crear el modal si no existe
+    // Eliminar el modal anterior si existe
     let modal = document.getElementById('modal-modificar-cita');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'modal-modificar-cita';
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3><i class="fas fa-calendar-edit"></i> Modificar Cita</h3>
-                    <button class="btn-cerrar">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="form-modificar-cita">
-                        <div class="form-group">
-                            <label for="nueva-fecha">
-                                <i class="fas fa-calendar"></i> Fecha:
-                            </label>
-                            <input type="date" id="nueva-fecha" required>
-                        </div>
-                        <div class="form-group" style="position:relative;">
-                            <label for="nueva-hora">
-                                <i class="fas fa-clock"></i> Hora:
-                            </label>
-                            <span class="icon-select"><i class="fas fa-clock"></i></span>
-                            <select id="nueva-hora" required>
-                                <option value="17:30">17:30</option>
-                                <option value="18:00">18:00</option>
-                                <option value="18:30">18:30</option>
-                                <option value="19:00">19:00</option>
-                                <option value="19:30">19:30</option>
-                                <option value="20:00">20:00</option>
-                            </select>
-                            <span class="arrow-select"><i class="fas fa-chevron-down"></i></span>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-guardar">
-                                <i class="fas fa-save"></i> Guardar cambios
-                            </button>
-                            <button type="button" class="btn-cancelar">
-                                <i class="fas fa-times"></i> Cancelar
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        // Agregar estilos al modal
-        const style = document.createElement('style');
-        style.textContent = `
-            .btn-modificar {
-                background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 500;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.3s ease;
-                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
-            }
-            .btn-modificar:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
-                background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
-            }
-            .btn-modificar:active {
-                transform: translateY(0);
-                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
-            }
-            .btn-modificar i {
-                font-size: 0.9em;
-            }
-
-            /* Usar el ID para mayor especificidad y z-index alto */
-            #modalRegistrarPaciente.modal {
-                display: none; /* Valor inicial */
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0,0,0,0.5);
-                z-index: 5000 !important; /* Aumentar z-index */
-                opacity: 0;
-                transition: opacity 0.3s ease;
-                /* Estilos para centrar contenido con Flexbox */
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            #modalRegistrarPaciente.modal.show {
-                opacity: 1;
-            }
-            /* Usar el ID para mayor especificidad */
-            #modalRegistrarPaciente .modal-content {
-                position: relative;
-                background-color: #fff;
-                /* Eliminar margin */
-                margin: 0;
-                padding: 25px;
-                width: 90%;
-                max-width: 500px;
-                border-radius: 12px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-                transform: translateY(-20px);
-                transition: transform 0.3s ease;
-                /* Limitar altura y agregar scroll */
-                max-height: 95vh;
-                overflow-y: auto;
-            }
-            #modalRegistrarPaciente.modal.show .modal-content {
-                transform: translateY(0);
-            }
-            .modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 25px;
-                padding-bottom: 15px;
-                border-bottom: 2px solid #f0f0f0;
-            }
-            .modal-header h3 {
-                color: #2196F3;
-                font-size: 1.4rem;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                margin: 0;
-            }
-            .modal-header h3 i {
-                color: #2196F3;
-            }
-            .btn-cerrar {
-                background: none;
-                border: none;
-                font-size: 28px;
-                cursor: pointer;
-                color: #666;
-                width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                transition: all 0.3s ease;
-            }
-            .btn-cerrar:hover {
-                background-color: #f0f0f0;
-                color: #333;
-            }
-            .form-group {
-                margin-bottom: 20px;
-            }
-            .form-group label {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 8px;
-                font-weight: 500;
-                color: #333;
-            }
-            .form-group label i {
-                color: #2196F3;
-            }
-            .form-group input {
-                width: 100%;
-                padding: 12px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                font-size: 1rem;
-                transition: all 0.3s ease;
-            }
-            .form-group input:focus {
-                border-color: #2196F3;
-                box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
-                outline: none;
-            }
-            .form-actions {
-                display: flex;
-                justify-content: flex-end;
-                gap: 12px;
-                margin-top: 25px;
-            }
-            .btn-guardar, .btn-cancelar {
-                padding: 12px 24px;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                font-weight: 500;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.3s ease;
-                font-size: 1rem;
-            }
-            .btn-guardar {
-                background-color: #2196F3;
-                color: white;
-                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
-            }
-            .btn-guardar:hover {
-                background-color: #1976D2;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
-            }
-            .btn-cancelar {
-                background-color: #f5f5f5;
-                color: #666;
-            }
-            .btn-cancelar:hover {
-                background-color: #e0e0e0;
-                color: #333;
-            }
-            @media (max-width: 600px) {
-                .modal-content {
-                    margin: 5% auto;
-                    padding: 20px;
-                }
-                .form-actions {
-                    flex-direction: column;
-                }
-                .btn-guardar, .btn-cancelar {
-                    width: 100%;
-                    justify-content: center;
-                }
-            }
-            .form-group select {
-                width: 100%;
-                padding: 14px 44px 14px 44px;
-                border: 2px solid #2196F3;
-                border-radius: 10px;
-                font-size: 1.15rem;
-                background: #f7fbff;
-                color: #1976D2;
-                font-weight: 600;
-                box-shadow: 0 2px 8px rgba(33,150,243,0.08);
-                transition: border 0.2s, box-shadow 0.2s, background 0.2s;
-                appearance: none;
-                outline: none;
-                cursor: pointer;
-                position: relative;
-            }
-            .form-group select:focus, .form-group select:hover {
-                border-color: #1565c0;
-                background: #e3f2fd;
-                box-shadow: 0 4px 16px rgba(33,150,243,0.13);
-            }
-            .form-group select option {
-                padding: 16px 0;
-                font-size: 1.1rem;
-                color: #1976D2;
-                background: #fff;
-                border-bottom: 1px solid #e3f2fd;
-            }
-            .form-group .icon-select {
-                position: absolute;
-                left: 16px;
-                top: 50%;
-                transform: translateY(-50%);
-                color: #2196F3;
-                font-size: 1.3em;
-                pointer-events: none;
-            }
-            .form-group .arrow-select {
-                position: absolute;
-                right: 18px;
-                top: 50%;
-                transform: translateY(-50%);
-                color: #2196F3;
-                font-size: 1.2em;
-                pointer-events: none;
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Agregar eventos al modal
-        modal.querySelector('.btn-cerrar').addEventListener('click', () => {
-            modal.classList.remove('show');
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        });
-
-        modal.querySelector('.btn-cancelar').addEventListener('click', () => {
-            modal.classList.remove('show');
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        });
-
-        // Prellenar el formulario con los datos actuales
-        document.getElementById('nueva-fecha').value = cita.fecha;
-        const selectHora = document.getElementById('nueva-hora');
-        
-        // Validar que la hora actual esté en el rango permitido
-        const horaActual = cita.hora;
-        const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
-        
-        if (horasValidas.includes(horaActual)) {
-            selectHora.value = horaActual;
-        } else {
-            // Si la hora actual no es válida, seleccionar la más cercana
-            const horaIndex = horasValidas.findIndex(h => h > horaActual);
-            selectHora.value = horaIndex >= 0 ? horasValidas[horaIndex] : horasValidas[0];
-        }
-
-        // Mostrar el modal con animación
-        modal.style.display = 'flex';
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-
-        modal.querySelector('form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nuevaFecha = document.getElementById('nueva-fecha').value;
-            const nuevaHora = document.getElementById('nueva-hora').value;
-            
-            try {
-                // Verificar disponibilidad
-                const { data: citasExistentes, error: errorConsulta } = await supabase
-            .from('citas')
-                    .select('id')
-                    .eq('fecha', nuevaFecha)
-                    .eq('hora', nuevaHora)
-                    .neq('id', cita.id)
-                    .in('estado', ['pendiente', 'confirmada']);
-
-                if (errorConsulta) throw errorConsulta;
-
-                if (citasExistentes && citasExistentes.length > 0) {
-                    mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
-                    return;
-                }
-
-                // Actualizar la cita
-                const { error: errorActualizacion } = await supabase
-                    .from('citas')
-                    .update({
-                        fecha: nuevaFecha,
-                        hora: nuevaHora
-                    })
-                    .eq('id', cita.id);
-
-                if (errorActualizacion) throw errorActualizacion;
-
-                // Actualizar la UI
-                const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
-                if (citaElement) {
-                    citaElement.dataset.fecha = nuevaFecha;
-                    citaElement.dataset.hora = nuevaHora;
-                    citaElement.querySelector('div:first-child').innerHTML = `
-                        <strong>${cita.nombre}</strong><br>
-                        ${nuevaFecha} - ${nuevaHora}<br>
-                        <small>${cita.email} | ${cita.telefono}</small>
-                    `;
-                }
-
-                // Cerrar el modal y mostrar notificación
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    modal.style.display = 'none';
-                }, 300);
-                mostrarNotificacion('Cita modificada exitosamente', 'success');
-
-                // Actualizar el dashboard si está visible
-                if (document.getElementById('dashboard').classList.contains('active')) {
-                    cargarDashboard();
-                }
-    } catch (error) {
-                console.error('Error al modificar la cita:', error);
-                mostrarNotificacion('Error al modificar la cita', 'error');
-            }
-        });
+    if (modal) {
+        modal.remove();
     }
+
+    // Crear el modal
+    modal = document.createElement('div');
+    modal.id = 'modal-modificar-cita';
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-calendar-edit"></i> Modificar Cita</h3>
+                <button class="btn-cerrar" type="button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-modificar-cita">
+                    <div class="form-group">
+                        <label for="nueva-fecha">
+                            <i class="fas fa-calendar"></i> Fecha:
+                        </label>
+                        <input type="date" id="nueva-fecha" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nueva-hora">
+                            <i class="fas fa-clock"></i> Hora:
+                        </label>
+                        <select id="nueva-hora" required>
+                            <option value="17:30">17:30</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:30">18:30</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:30">19:30</option>
+                            <option value="20:00">20:00</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-guardar">
+                            <i class="fas fa-save"></i> Guardar cambios
+                        </button>
+                        <button type="button" class="btn-cancelar">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Prellenar el formulario con los datos actuales
+    document.getElementById('nueva-fecha').value = cita.fecha;
+    const selectHora = document.getElementById('nueva-hora');
+    const horaActual = cita.hora.slice(0,5); // Asegura formato HH:MM
+    const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
+    if (horasValidas.includes(horaActual)) {
+        selectHora.value = horaActual;
+    } else {
+        const horaIndex = horasValidas.findIndex(h => h > horaActual);
+        selectHora.value = horaIndex >= 0 ? horasValidas[horaIndex] : horasValidas[0];
+    }
+
+    // Mostrar el modal
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+
+    // Cerrar modal
+    function cerrar() {
+        modal.classList.remove('show');
+        setTimeout(() => {
+            if (modal.parentNode) modal.parentNode.removeChild(modal);
+        }, 300);
+    }
+    modal.querySelector('.btn-cerrar').onclick = cerrar;
+    modal.querySelector('.btn-cancelar').onclick = cerrar;
+    modal.onclick = function(e) {
+        if (e.target === modal) cerrar();
+    };
+    document.addEventListener('keydown', function escListener(e) {
+        if (e.key === 'Escape') {
+            cerrar();
+            document.removeEventListener('keydown', escListener);
+        }
+    });
+
+    // Submit
+    modal.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nuevaFecha = document.getElementById('nueva-fecha').value;
+        const nuevaHora = document.getElementById('nueva-hora').value;
+        try {
+            // Verificar disponibilidad
+            const { data: citasExistentes, error: errorConsulta } = await supabase
+                .from('citas')
+                .select('id')
+                .eq('fecha', nuevaFecha)
+                .eq('hora', nuevaHora)
+                .neq('id', cita.id)
+                .in('estado', ['pendiente', 'confirmada']);
+            if (errorConsulta) throw errorConsulta;
+            if (citasExistentes && citasExistentes.length > 0) {
+                mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
+                return;
+            }
+            // Actualizar la cita
+            const { error: errorActualizacion } = await supabase
+                .from('citas')
+                .update({
+                    fecha: nuevaFecha,
+                    hora: nuevaHora
+                })
+                .eq('id', cita.id);
+            if (errorActualizacion) throw errorActualizacion;
+            // Actualizar la UI
+            const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
+            if (citaElement) {
+                citaElement.dataset.fecha = nuevaFecha;
+                citaElement.dataset.hora = nuevaHora;
+                citaElement.querySelector('div:first-child').innerHTML = `
+                    <strong>${cita.nombre}</strong><br>
+                    ${nuevaFecha} - ${nuevaHora}<br>
+                    <small>${cita.email} | ${cita.telefono}</small>
+                `;
+            }
+            cerrar();
+            mostrarNotificacion('Cita modificada exitosamente', 'success');
+            if (document.getElementById('dashboard').classList.contains('active')) {
+                cargarDashboard();
+            }
+        } catch (error) {
+            console.error('Error al modificar la cita:', error);
+            mostrarNotificacion('Error al modificar la cita', 'error');
+        }
+    });
 }
 
 // Función para mostrar notificaciones
