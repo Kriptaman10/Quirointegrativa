@@ -69,6 +69,134 @@ function cerrarModalRegistrar() {
     document.getElementById('formRegistrarPaciente').reset();
 }
 
+// Funciones de utilidad
+function mostrarToast(mensaje, tipo = 'info') {
+    const toast = document.getElementById('toast-notificacion');
+    const mensajeToast = document.getElementById('mensaje-toast');
+    const icono = toast.querySelector('i');
+    
+    // Configurar el estilo según el tipo
+    toast.style.background = tipo === 'error' ? '#ff5252' : '#4fc3f7';
+    icono.className = tipo === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
+    
+    mensajeToast.textContent = mensaje;
+    toast.style.display = 'flex';
+    
+    // Ocultar después de 3 segundos
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 3000);
+}
+
+// Función para formatear fecha y hora
+function formatearFechaHora(fecha, hora) {
+    const fechaObj = new Date(fecha);
+    const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const fechaFormateada = fechaObj.toLocaleDateString('es-ES', opcionesFecha);
+    return `${fechaFormateada} a las ${hora}`;
+}
+
+// Funciones para gestionar citas
+$(document).ready(function() {
+    // Inicializar el calendario
+    $('#calendario').fullCalendar({
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'month,agendaWeek,agendaDay'
+        },
+        events: async function(start, end, timezone, callback) {
+            try {
+                const { data: citas, error } = await supabaseClient
+                    .from('citas')
+                    .select('*')
+                    .order('fecha', { ascending: true });
+
+                if (error) throw error;
+
+                // Filtrar citas para mostrar solo las del día o futuras
+                const hoy = moment().startOf('day');
+                const eventos = citas.filter(cita => moment(`${cita.fecha} ${cita.hora}`).isSameOrAfter(hoy)).map(cita => ({
+                    title: cita.nombre,
+                    start: moment(`${cita.fecha} ${cita.hora}`),
+                    allDay: false
+                }));
+
+                callback(eventos);
+            } catch (error) {
+                console.error('Error al cargar citas:', error);
+                mostrarToast('Error al cargar las citas', 'error');
+            }
+        },
+        editable: true,
+        eventLimit: true,
+        selectable: true,
+        select: function(start, end) {
+            // Lógica para seleccionar una fecha en el calendario
+            $('#fecha-cita').val(moment(start).format('YYYY-MM-DD'));
+            $('#hora-cita').val(moment(start).format('HH:mm'));
+        }
+    });
+
+    // Mostrar el formulario al hacer clic en el botón
+    $('#btn-agregar-cita').on('click', function() {
+        $('#formulario-cita').toggle(); // Alternar la visibilidad del formulario
+    });
+
+    // Manejar el envío del formulario
+    $('#form-agendar-cita').on('submit', async function(event) {
+        event.preventDefault(); // Prevenir el envío normal del formulario
+
+        const nombre = $('#nombre-paciente').val();
+        const telefono = $('#telefono-paciente').val();
+        const email = $('#email-paciente').val();
+        const rut = $('#rut-paciente').val();
+        const fechaNacimiento = $('#fecha-nacimiento').val();
+        const fechaCita = $('#fecha-cita').val();
+        const horaCita = $('#hora-cita').val();
+
+        // Enviar la cita a la base de datos
+        const response = await fetch('/api/agendar-cita', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nombre,
+                telefono,
+                email,
+                rut,
+                fechaNacimiento,
+                fecha: fechaCita,
+                hora: horaCita
+            })
+        });
+
+        if (response.ok) {
+            const cita = await response.json();
+            // Agregar la nueva cita al calendario
+            $('#calendario').fullCalendar('renderEvent', {
+                title: nombre,
+                start: moment(`${fechaCita} ${horaCita}`),
+                allDay: false
+            });
+            mostrarToast('Cita agendada correctamente');
+            $('#formulario-cita').hide(); // Ocultar el formulario después de agendar
+        } else {
+            mostrarToast('Error al agendar la cita', 'error');
+        }
+    });
+});
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Cargar horarios al iniciar
+    cargarHorariosExtra(); // Si esta función es necesaria, asegúrate de que esté definida en este archivo
+
+    // Agregar listener al formulario
+    document.getElementById('formulario-horario-extra')
+        .addEventListener('submit', agregarHorarioExtra); // Asegúrate de que esta función esté definida
+});
+
+
 // Event Listeners para modales
 document.addEventListener('DOMContentLoaded', function() {
     // Modal de Modificación - Botón cerrar
