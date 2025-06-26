@@ -1,5 +1,6 @@
 let horarioExtraSeleccionado = null; // Para almacenar el horario extra seleccionado
 let calendar = null; // Instancia global del calendario
+let pacientesGlobal = [];
 // Configuración de Supabase
 const supabaseConfig = {
     url: 'https://ivneinajrywdljevjgjx.supabase.co',
@@ -14,9 +15,42 @@ const EMAILJS_CONFIG = {
     publicKey: 'fBdM064XPXrY_vm_n'
 };
 
+//Función para eliminar citas pasadas y cancelarlas
+async function cancelarYEliminarCitasPasadas() {
+    const hoy = new Date().toISOString().split('T')[0];
+    try {
+        // Actualizar estado a 'cancelada' para citas pasadas que no estén ya canceladas
+        await supabase
+            .from('citas')
+            .update({ estado: 'cancelada' })
+            .lt('fecha', hoy)
+            .not('estado', 'eq', 'cancelada');
+
+        // Eliminar citas pasadas (opcional, si quieres borrarlas de la base)
+        await supabase
+            .from('citas')
+            .delete()
+            .lt('fecha', hoy);
+
+    } catch (error) {
+        console.error('Error al cancelar/eliminar citas pasadas:', error);
+    }
+}
+
+// Función para quitar tildes y pasar a minúsculas
+function normalizarTexto(texto) {
+    return texto
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar EmailJS
     emailjs.init(EMAILJS_CONFIG.publicKey);
+
+    //Función para cancelar y eliminar citas pasadas
+    cancelarYEliminarCitasPasadas();
 
     // Verificar si el usuario está logueado
     const medicoLogueado = localStorage.getItem('medicoLogueado')
@@ -250,6 +284,120 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function cargarPacientes() {
+        try {
+            const { data: citas, error } = await supabase
+                .from('citas')
+                .select('*')
+                .order('nombre', { ascending: true });
+
+            if (error) throw error;
+
+            // Agrupar citas por paciente
+            const pacientes = {};
+            citas?.forEach(cita => {
+                if (!pacientes[cita.email]) {
+                    pacientes[cita.email] = {
+                        nombre: cita.nombre,
+                        email: cita.email,
+                        telefono: cita.telefono,
+                        citas: []
+                    };
+                }
+                pacientes[cita.email].citas.push(cita);
+            });
+
+            pacientesGlobal = Object.values(pacientes); // Guarda la lista globalmente
+
+            renderizarPacientes(pacientesGlobal); // <-- SIEMPRE usa esta función
+
+        } catch (error) {
+            console.error('Error al cargar los pacientes:', error);
+        }
+    }
+
+    // Agregar evento de búsqueda
+    const searchInput = document.getElementById('searchPaciente');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = normalizarTexto(this.value);
+            const filtrados = pacientesGlobal.filter(paciente =>
+                normalizarTexto(paciente.nombre).includes(query) ||
+                normalizarTexto(paciente.email).includes(query)
+            );
+            renderizarPacientes(filtrados);
+        });
+    }
+
+    // Función para renderizar la lista de pacientes
+    function renderizarPacientes(pacientes) {
+        const patientsList = document.querySelector('.patients-list');
+        patientsList.innerHTML = pacientes.length
+            ? `<div class="patients-grid">
+                ${pacientes.map((paciente, idx) => {
+                    const iniciales = paciente.nombre
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2);
+
+                    const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
+                    const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
+                    const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
+
+                    return `
+                    <div class="patient-card">
+                        <div class="patient-header">
+                            <div class="patient-avatar">
+                                ${iniciales}
+                            </div>
+                            <div class="patient-info">
+                                <h3>${capitalizarNombre(paciente.nombre)}</h3>
+                                <small>Paciente #${idx + 1}</small>
+                            </div>
+                        </div>
+                        <div class="patient-contact">
+                            <p>
+                                <i class="fas fa-envelope"></i>
+                                ${paciente.email}
+                            </p>
+                            <p>
+                                <i class="fas fa-phone"></i>
+                                ${paciente.telefono}
+                            </p>
+                        </div>
+                        <div class="patient-stats">
+                            <div class="stat-item">
+                                <div class="stat-value">${citasConfirmadas}</div>
+                                <div class="stat-label">Confirmadas</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${citasPendientes}</div>
+                                <div class="stat-label">Pendientes</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${citasCanceladas}</div>
+                                <div class="stat-label">Canceladas</div>
+                            </div>
+                        </div>
+                        <div class="patient-appointments">
+                            <h4>Últimas citas:</h4>
+                            <ul class="appointment-history">
+                                ${paciente.citas.slice(-3).map(cita => `
+                                    <li>
+                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `}).join('')}
+            </div>`
+            : '<p>No hay pacientes registrados</p>';
+    }
+
     // Función para inicializar el calendario
     function inicializarCalendario() {
         const calendarEl = document.getElementById('calendar');
@@ -441,89 +589,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) throw error
 
             // Agrupar citas por paciente
-            const pacientes = {}
+            const pacientes = {};
             citas?.forEach(cita => {
-                if (!pacientes[cita.email]) {
-                    pacientes[cita.email] = {
+                const email = cita.email.trim().toLowerCase();
+                if (!pacientes[email]) {
+                    pacientes[email] = {
                         nombre: cita.nombre,
                         email: cita.email,
                         telefono: cita.telefono,
                         citas: []
                     }
                 }
-                pacientes[cita.email].citas.push(cita)
-            })
-
-            const patientsList = document.querySelector('.patients-list')
-            patientsList.innerHTML = Object.values(pacientes).length
-                ? `<div class="patients-grid">
-                    ${Object.values(pacientes).map(paciente => {
-                        // Obtener iniciales para el avatar
-                        const iniciales = paciente.nombre
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')
-                            .toUpperCase()
-                            .slice(0, 2);
-
-                        // Calcular estadísticas
-                        const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
-                        const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
-                        const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
-
-                        return `
-                        <div class="patient-card">
-                            <div class="patient-header">
-                                <div class="patient-avatar">
-                                    ${iniciales}
-                                </div>
-                                <div class="patient-info">
-                                    <h3>${capitalizarNombre(paciente.nombre)}</h3>
-                                    <small>Paciente #${Math.floor(Math.random() * 10000)}</small>
-                                </div>
-                            </div>
-
-                            <div class="patient-contact">
-                                <p>
-                                    <i class="fas fa-envelope"></i>
-                                    ${paciente.email}
-                                </p>
-                                <p>
-                                    <i class="fas fa-phone"></i>
-                                    ${paciente.telefono}
-                                </p>
-                            </div>
-
-                            <div class="patient-stats">
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasConfirmadas}</div>
-                                    <div class="stat-label">Confirmadas</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasPendientes}</div>
-                                    <div class="stat-label">Pendientes</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasCanceladas}</div>
-                                    <div class="stat-label">Canceladas</div>
-                                </div>
-                            </div>
-
-                            <div class="patient-appointments">
-                                <h4>Últimas citas:</h4>
-                                <ul class="appointment-history">
-                                    ${paciente.citas.slice(-3).map(cita => `
-                                        <li>
-                                            <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                            <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                        </li>
-                                    `).join('')}
-                                </ul>
-                            </div>
-                        </div>
-                    `}).join('')}
-                </div>`
-                : '<p>No hay pacientes registrados</p>'
+                pacientes[email].citas.push(cita);
+            });
+            pacientesGlobal = Object.values(pacientes);
+            renderizarPacientes(pacientesGlobal);
 
         } catch (error) {
             console.error('Error al cargar los pacientes:', error)
@@ -1170,6 +1250,8 @@ function cerrarModalRegistrar() {
     horarioExtraSeleccionado = null;
 }
 
+let calendarForm = null; // Instancia del calendario del formulario
+
 // Asegura que los elementos existen antes de agregar listeners
 document.addEventListener('DOMContentLoaded', function() {
     const cerrarBtn = document.getElementById('cerrarModalRegistrar');
@@ -1184,67 +1266,153 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    const form = document.getElementById('formRegistrarPaciente');
-    if (form) {
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if (!horarioExtraSeleccionado) {
-                mostrarNotificacion('Error: No hay horario seleccionado', 'error');
-                return;
-            }
-            const nombre = document.getElementById('nombrePaciente').value.trim();
-            const email = document.getElementById('emailPaciente').value.trim();
-            const telefono = document.getElementById('telefonoPaciente').value.trim();
-            if (!nombre || !email || !telefono) {
-                mostrarNotificacion('Por favor complete todos los campos', 'error');
-                return;
-            }
-            if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
-                mostrarNotificacion('Por favor ingrese un email válido', 'error');
-                return;
-            }
-            try {
-                // Verificar que no exista una cita en la misma fecha y hora
-                const { data: citasExistentes, error: errorVerificacion } = await supabase
-                    .from('citas')
-                    .select('id')
-                    .eq('fecha', horarioExtraSeleccionado.fecha)
-                    .eq('hora', horarioExtraSeleccionado.hora)
-                    .in('estado', ['pendiente', 'confirmada']);
-                if (errorVerificacion) throw errorVerificacion;
-                if (citasExistentes && citasExistentes.length > 0) {
-                    mostrarNotificacion('Ya existe una cita registrada en este horario', 'error');
-                    return;
+
+    // Mostrar/ocultar formulario de nueva cita
+    const btnAgregarCita = document.getElementById('btn-agregar-cita');
+    const formularioCitaDiv = document.getElementById('formulario-cita'); // <-- el DIV contenedor
+    const formularioCita = document.getElementById('form-agendar-cita'); // <-- el FORM
+    const calendarioDiv = document.getElementById('form-calendario');
+
+    if (btnAgregarCita && formularioCitaDiv && formularioCita && calendarioDiv) {
+        btnAgregarCita.addEventListener('click', () => {
+            const mostrar = formularioCitaDiv.style.display === 'none' || formularioCitaDiv.style.display === '';
+            formularioCitaDiv.style.display = mostrar ? 'block' : 'none';
+
+            if (mostrar) {
+                if (!calendarForm) {
+                    calendarForm = new FullCalendar.Calendar(calendarioDiv, {
+                        initialView: 'timeGridWeek',
+                        locale: 'es',
+                        height: 'auto',
+                        contentHeight: 'auto',
+                        headerToolbar: {
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                        },
+                        slotMinTime: '17:30:00',
+                        slotMaxTime: '20:00:00',
+                        slotDuration: '00:30:00',
+                        unselectAuto: false,
+                        selectable: true,
+                        selectMirror: true,
+                        //Permite que no se pueda seleccionar un slot que ya tenga un evento
+                        selectOverlap: false,
+                        allDaySlot: false,
+                        businessHours: {
+                            daysOfWeek: [1, 2, 3, 4, 5], // Lunes a Viernes
+                            startTime: '08:00',
+                            endTime: '20:00'
+                        },
+
+                        validRange: {
+                            start: new Date().toISOString().split('T')[0] // Solo hoy y futuro
+                        },
+
+                        events: async function(fetchInfo, successCallback, failureCallback) {
+                            try {
+                                const { data: citas, error } = await supabase
+                                    .from('citas')
+                                    .select('*')
+                                    .gte('fecha', fetchInfo.startStr.split('T')[0])
+                                    .lte('fecha', fetchInfo.endStr.split('T')[0]);
+                                if (error) throw error;
+
+                                const eventos = citas.map(cita => ({
+                                    id: `cita-${cita.id}`,
+                                    title: cita.nombre,
+                                    start: `${cita.fecha}T${cita.hora}`,
+                                    backgroundColor:
+                                        cita.estado === 'pendiente' ? '#f39c12' : // Naranja para reservadas
+                                        cita.estado === 'confirmada' ? '#e74c3c' : // Rojo para ocupadas
+                                        '#2196F3', // Azul por defecto
+                                    borderColor:
+                                        cita.estado === 'pendiente' ? '#e67e22' :
+                                        cita.estado === 'confirmada' ? '#c0392b' :
+                                        '#1976D2',
+                                    extendedProps: {
+                                        citaData: cita
+                                    }
+                                }));
+
+                                successCallback(eventos);
+                            } catch (error) {
+                                console.error('Error cargando eventos:', error);
+                                failureCallback(error);
+                            }
+                        },
+                        select: function(info) {
+                            // Al seleccionar un slot, rellenar el formulario
+                            const fechaInput = document.getElementById('fecha-cita');
+                            const horaInput = document.getElementById('hora-cita');
+                            if (fechaInput && horaInput) {
+                                fechaInput.value = info.startStr.split('T')[0];
+                                horaInput.value = info.startStr.split('T')[1]?.substring(0,5) || '';
+                            }
+                        }
+                    });
+                    calendarForm.render();
                 }
-                // Insertar nueva cita
-                const { error } = await supabase
-                    .from('citas')
-                    .insert([{
-                        nombre: nombre,
-                        email: email,
-                        telefono: telefono,
-                        fecha: horarioExtraSeleccionado.fecha,
-                        hora: horarioExtraSeleccionado.hora,
-                        estado: 'confirmada'
-                    }]);
-                if (error) throw error;
-                // Eliminar el horario extra
-                await supabase
-                    .from('horarios_disponibles')
-                    .delete()
-                    .eq('id', horarioExtraSeleccionado.id);
-                mostrarNotificacion('Paciente registrado exitosamente', 'success');
-                cerrarModalRegistrar();
-                // Actualizar el calendario
-                if (typeof calendar !== 'undefined' && calendar.refetchEvents) {
-                    calendar.refetchEvents();
+            } else {
+                if (calendarForm) {
+                    calendarForm.destroy();
+                    calendarForm = null;
                 }
-            } catch (error) {
-                console.error('Error registrando paciente:', error);
-                mostrarNotificacion('Error al registrar el paciente: ' + error.message, 'error');
+                calendarioDiv.innerHTML = '';
             }
         });
+
+        formularioCita.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-paciente').value.trim();
+            const email = document.getElementById('email-paciente').value.trim();
+            const telefono = document.getElementById('telefono-paciente').value.trim();
+            const fecha = document.getElementById('fecha-cita').value;
+            let hora = document.getElementById('hora-cita').value;
+            if (hora.length === 5) hora = hora + ':00';
+
+            if (!nombre || !email || !telefono || !fecha || !hora) {
+                mostrarNotificacion('Completa todos los campos', 'error');
+                return;
+            }
+
+            const { data: citasExistentes, error: errorVerif } = await supabase
+                .from('citas')
+                .select('id')
+                .eq('fecha', fecha)
+                .eq('hora', hora)
+                .in('estado', ['pendiente', 'confirmada']);
+            if (errorVerif) {
+                mostrarNotificacion('Error al verificar disponibilidad', 'error');
+                return;
+            }
+            if (citasExistentes && citasExistentes.length > 0) {
+                mostrarNotificacion('Ya existe una cita en ese horario', 'error');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('citas')
+                .insert([{
+                    nombre,
+                    email,
+                    telefono,
+                    fecha,
+                    hora,
+                    estado: 'pendiente'
+                }]);
+            if (error) {
+                mostrarNotificacion('Error al guardar la cita', 'error');
+                return;
+            }
+
+            mostrarNotificacion('Cita agendada correctamente', 'success');
+            if (typeof cargarCitas === 'function') cargarCitas(); // <-- recarga la lista de citas
+            formularioCita.reset();
+            if (calendarForm) calendarForm.refetchEvents();
+        });
     }
+
 });
 
 // =================== FIN MODAL Y REGISTRO DE PACIENTE EN HORARIO EXTRA ===================
