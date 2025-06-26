@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>Gestionar Cita - Quirointegrativa</title>
+
+  <!-- Favicon -->
+  <link href="./assets/img/favicon.png" rel="icon">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700|Roboto:300,400,500,700|Poppins:300,400,500,600,700" rel="stylesheet">
+  
+  <!-- Bootstrap CSS desde CDN para evitar problemas de MIME -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  
+  <!-- SweetAlert2 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  
+  <!-- FullCalendar CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css" rel="stylesheet">
+  
+  <!-- Estilos personalizados inline para evitar problemas de carga -->
+  <style>
+    body {
+      font-family: 'Open Sans', sans-serif;
+      background-color: #f8f9fa;
+    }
+    
+    #header {
+      background: #fff;
+      box-shadow: 0px 2px 15px rgba(0, 0, 0, 0.1);
+      z-index: 997;
+      padding: 15px 0;
+    }
+    
+    #header.fixed-top {
+      position: fixed;
+      top: 0;
+      width: 100%;
+    }
+    
+    .logo {
+      margin: 0;
+    }
+    
+    .logo a {
+      color: #2c4964;
+      text-decoration: none;
+      font-size: 28px;
+      font-weight: 600;
+    }
+    
+    #main {
+      margin-top: 80px;
+    }
+    
+    .breadcrumbs {
+      padding: 20px 0;
+      background-color: #f1f7fd;
+    }
+    
+    .breadcrumbs h2 {
+      color: #2c4964;
+      font-weight: 600;
+    }
+    
+    .inner-page {
+      padding: 60px 0;
+    }
+    
+    .card {
+      border: none;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+    }
+    
+    .card-header {
+      background: linear-gradient(45deg, #2c4964, #1e3a52);
+      color: white;
+      border-radius: 10px 10px 0 0 !important;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(45deg, #2c4964, #1e3a52);
+      border: none;
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(45deg, #1e3a52, #2c4964);
+    }
+    
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+    
+    #calendar-modificar {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .fc-event {
+      cursor: pointer;
+    }
+    
+    .fc-daygrid-event {
+      white-space: normal;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header id="header" class="fixed-top">
+    <div class="container d-flex align-items-center justify-content-between">
+      <h1 class="logo"><a href="./index.html">Quirointegrativa</a></h1>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="breadcrumbs">
+      <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+          <h2>Gestionar mi Cita</h2>
+        </div>
+      </div>
+    </section>
+
+    <section class="inner-page">
+      <div class="container" id="gestion-container">
+        
+        <!-- Estado de Carga -->
+        <div id="loading-state" class="text-center">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mt-3 fs-5">Cargando los datos de tu cita...</p>
+        </div>
+
+        <!-- Contenido Principal -->
+        <div id="content-state" class="row" style="display: none;">
+          <!-- Columna Izquierda: Detalles y Acciones -->
+          <div class="col-lg-5 mb-4">
+            <div class="card mb-4">
+              <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-circle me-2"></i>Tus Datos</h5>
+              </div>
+              <div class="card-body">
+                <form>
+                  <div class="mb-3">
+                    <label for="nombrePaciente" class="form-label">Nombre</label>
+                    <input type="text" id="nombrePaciente" class="form-control" readonly>
+                  </div>
+                  <div class="mb-3">
+                    <label for="telefonoPaciente" class="form-label">Teléfono</label>
+                    <input type="text" id="telefonoPaciente" class="form-control" readonly>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Tu Cita Actual</h5>
+              </div>
+              <div class="card-body">
+                <div id="detalles-cita" class="alert alert-info"></div>
+                <div id="info-seleccion" class="alert alert-warning" style="display: none;"></div>
+                <div class="d-grid gap-2 mt-3">
+                  <button class="btn btn-primary btn-lg" id="btn-confirmar-cambio" disabled>
+                    <i class="bi bi-check-circle me-2"></i>Confirmar Nuevo Horario
+                  </button>
+                  <hr>
+                  <button class="btn btn-danger btn-lg" id="btn-cancelar-cita">
+                    <i class="bi bi-trash me-2"></i>Cancelar mi Cita
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Columna Derecha: Calendario -->
+          <div class="col-lg-7">
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Selecciona un nuevo horario disponible</h5>
+              </div>
+              <div class="card-body">
+                <div id="calendar-modificar"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estado de Error -->
+        <div id="error-state" style="display: none;" class="alert alert-danger text-center">
+          <i class="bi bi-exclamation-triangle-fill fs-1 text-danger"></i>
+          <h4 class="mt-3">Error</h4>
+          <p>No se pudo encontrar la cita solicitada. Por favor, verifica el enlace o contacta con nosotros.</p>
+          <button class="btn btn-outline-danger" onclick="window.history.back()">
+            <i class="bi bi-arrow-left me-2"></i>Volver
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- Script principal -->
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. CONFIGURACIÓN Y REFERENCIAS AL DOM
+      const SUPABASE_URL = 'https://ivbghvmhcmshifbspuxy.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2Ymdodm1oY21zaGlmYnNwdXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY5OTc5MTUsImV4cCI6MjAzMjU3MzkxNX0.dIN1a9m6n83sW5h1h3BT0IftB9BAK7oARyn64_BQl_U';
+      
+      if (typeof supabase === 'undefined') {
+        showState('error');
+        return;
+      }
+      
+      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      const loadingState = document.getElementById('loading-state');
+      const contentState = document.getElementById('content-state');
+      const errorState = document.getElementById('error-state');
+      const nombreInput = document.getElementById('nombrePaciente');
+      const telefonoInput = document.getElementById('telefonoPaciente');
+      const detallesCitaDiv = document.getElementById('detalles-cita');
+      const calendarEl = document.getElementById('calendar-modificar');
+      const btnConfirmar = document.getElementById('btn-confirmar-cambio');
+      const btnCancelar = document.getElementById('btn-cancelar-cita');
+      const infoSeleccionDiv = document.getElementById('info-seleccion');
+
+      let citaActual = null;
+      let horarioActual = null;
+      let nuevaSeleccion = null;
+      let calendar = null;
+
+      // =====================================================================
+      // ===== INICIO DE LA MODIFICACIÓN PARA PRUEBAS (SIN ID EN URL) =====
+      // =====================================================================
+
+      // 2. OBTENER ID DE LA URL Y VALIDAR (SECCIÓN COMENTADA)
+      /*
+      const params = new URLSearchParams(window.location.search);
+      const citaId = params.get('id');
+
+      if (!citaId) {
+        console.error('No se proporcionó ID de cita en la URL');
+        showState('error');
+        return;
+      }
+      */
+      
+      // Función para mostrar el estado correcto de la UI (SIN CAMBIOS)
+      function showState(state) {
+        loadingState.style.display = 'none';
+        contentState.style.display = 'none';
+        errorState.style.display = 'none';
+        document.getElementById(state + '-state').style.display = (state === 'content') ? 'flex' : 'block';
+      }
+
+      // 3. LÓGICA DE CARGA DE DATOS (MODIFICADA PARA USAR DATOS FALSOS)
+      try {
+        console.log('Modo de prueba: Usando datos falsos.');
+        
+        // DATOS FALSOS PARA SIMULAR UNA CITA ENCONTRADA
+        citaActual = {
+          identificacion: 'test-id-123',
+          nombre: 'Paciente de Prueba',
+          teléfono: '912345678',
+          horario_id: 'test-horario-id-456'
+        };
+
+        horarioActual = {
+          id: 'test-horario-id-456',
+          fecha_hora_inicio: new Date().toISOString(), // Simula que la cita es ahora
+          fecha_hora_fin: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString() // 1 hora después
+        };
+
+        console.log('Cita de prueba:', citaActual);
+        console.log('Horario de prueba:', horarioActual);
+        
+        // Rellenamos los datos del paciente (igual que antes)
+        nombreInput.value = citaActual.nombre || '';
+        telefonoInput.value = citaActual.teléfono || '';
+        
+        // Mostramos los detalles de la cita actual (igual que antes)
+        const fechaInicio = new Date(horarioActual.fecha_hora_inicio);
+        const fechaStr = fechaInicio.toLocaleString('es-ES', { 
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        
+        detallesCitaDiv.innerHTML = `
+          <i class="bi bi-calendar-event me-2"></i>
+          Tu cita está programada para:<br>
+          <strong class="fs-5">${fechaStr}</strong>
+        `;
+        
+        // Ahora que tenemos los datos falsos, inicializamos el calendario
+        initCalendar();
+        
+        // Mostramos el contenido principal
+        showState('content');
+        
+      } catch (error) {
+        // En modo de prueba, este bloque de error no debería ejecutarse, pero lo dejamos por seguridad.
+        console.error('Error en el modo de prueba:', error);
+        showState('error');
+        return;
+      }
+      
+      // =====================================================================
+      // ===== FIN DE LA MODIFICACIÓN PARA PRUEBAS ===========================
+      // =====================================================================
+
+      // 4. INICIALIZACIÓN DEL CALENDARIO (SIN CAMBIOS, FUNCIONARÁ CON LOS DATOS FALSOS)
+      function initCalendar() {
+        if (!calendarEl) {
+          console.error('Elemento del calendario no encontrado');
+          return;
+        }
+
+        calendar = new FullCalendar.Calendar(calendarEl, {
+          initialView: 'timeGridWeek',
+          locale: 'es',
+          headerToolbar: { 
+            left: 'prev,next today', center: 'title', right: 'timeGridWeek,dayGridMonth' 
+          },
+          businessHours: { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: '09:00', endTime: '19:00' },
+          selectable: true,
+          selectOverlap: false,
+          selectConstraint: 'businessHours',
+          height: 'auto',
+          events: async (fetchInfo, successCallback, failureCallback) => {
+            // Esta parte seguirá funcionando, obtendrá los horarios ocupados reales de la base de datos
+            // y los mostrará, lo cual es útil para las pruebas.
+            try {
+              const { data: citasOcupadas, error } = await supabaseClient.from('citas').select('horario_id');
+              if (error) throw error;
+              
+              const horariosOcupadosIds = citasOcupadas
+                .map(c => c.horario_id)
+                .filter(id => id && id !== (citaActual ? citaActual.horario_id : null)); // Usamos el ID de prueba
+
+              if (horariosOcupadosIds.length === 0) {
+                successCallback([]); return;
+              }
+
+              const { data: horarios } = await supabaseClient.from('horarios_disponibles').select('id, fecha_hora_inicio, fecha_hora_fin').in('id', horariosOcupadosIds);
+              
+              const eventos = (horarios || []).map(h => ({
+                id: h.id, title: 'Ocupado', start: h.fecha_hora_inicio, end: h.fecha_hora_fin, display: 'background', backgroundColor: '#dc3545'
+              }));
+              
+              if (horarioActual) {
+                eventos.push({
+                  id: 'current', title: 'Tu cita actual', start: horarioActual.fecha_hora_inicio, end: horarioActual.fecha_hora_fin, backgroundColor: '#28a745'
+                });
+              }
+              successCallback(eventos);
+            } catch (error) { failureCallback(error); }
+          },
+          select: (selectionInfo) => {
+            // ... (Esta función no necesita cambios)
+            nuevaSeleccion = selectionInfo;
+            const fechaStr = selectionInfo.start.toLocaleString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            infoSeleccionDiv.innerHTML = `<i class="bi bi-clock me-2"></i><strong>Nuevo horario seleccionado:</strong><br><span class="fs-6">${fechaStr}</span>`;
+            infoSeleccionDiv.style.display = 'block';
+            btnConfirmar.disabled = false;
+          },
+          unselect: () => {
+            // ... (Esta función no necesita cambios)
+            nuevaSeleccion = null;
+            infoSeleccionDiv.style.display = 'none';
+            btnConfirmar.disabled = true;
+          }
+        });
+        
+        calendar.render();
+      }
+
+      // 5. MANEJADORES DE EVENTOS PARA LOS BOTONES (SIN CAMBIOS)
+      // Estos botones seguirán intentando hacer operaciones reales en Supabase,
+      // lo cual es perfecto para probar si la lógica de UPDATE y DELETE funciona.
+      // Simplemente fallarán si los IDs de prueba no existen en la base de datos,
+      // pero te permitirán probar toda la interacción del usuario.
+      
+      btnConfirmar.addEventListener('click', async () => { /* ... tu código existente ... */ });
+      btnCancelar.addEventListener('click', async () => { /* ... tu código existente ... */ });
+    });
+  </script>
+</body>
+</html>
