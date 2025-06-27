@@ -848,58 +848,77 @@ async function confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, h
     }
 
     try {
-        // 1. Update Supabase
+        // 1. Actualizar Supabase (sin cambios aquí)
         const { error: supabaseError } = await supabase
             .from('citas')
             .update({ estado: 'confirmada' })
             .eq('id', citaId);
 
         if (supabaseError) {
-            // Construct a more informative error message for Supabase errors
             throw new Error(`Error de Supabase al actualizar la cita: ${supabaseError.message} (Código: ${supabaseError.code})`);
         }
 
-        // 2. Send Email
+        // 2. Enviar Correo de Confirmación con formato dual
         try {
+            // a. Crear un objeto Date a partir de los datos de la cita
+            //    Asumimos que fechaCita es 'YYYY-MM-DD' y horaCita es 'HH:MM'
+            const fechaObj = new Date(`${fechaCita}T${horaCita}`);
+
+            // b. Crear variables para MOSTRAR en el cuerpo del correo
+            const fechaParaMostrar = fechaObj.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }); // Ej: "jueves, 26 de junio de 2025"
+
+            const horaParaMostrar = fechaObj.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            }); // Ej: "21:02"
+
+            // c. Crear variables para el ENLACE (link)
+            //    Estas son las mismas que recibimos, en el formato que la página necesita
+            const fechaParaLink = fechaCita; // 'YYYY-MM-DD'
+            const horaParaLink = horaCita;   // 'HH:MM'
+
+            // d. Construir el objeto de parámetros con TODAS las variables
             const templateParams = {
                 email: emailPaciente,
                 nombre: nombrePaciente,
-                fecha: fechaCita,
-                hora: horaCita
+                fecha_mostrar: fechaParaMostrar,
+                hora_mostrar: horaParaMostrar,
+                fecha_link: fechaParaLink,
+                hora_link: horaParaLink
             };
             
             console.log('Enviando correo con parámetros:', templateParams);
             
             await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+
         } catch (emailError) {
             console.error('Error al enviar el correo de confirmación:', emailError);
             alert('Cita confirmada en la base de datos, pero falló el envío del correo de confirmación. Por favor, notifique al paciente manualmente.');
-            // Continue to update UI as confirmed, as DB was successful
         }
 
-        // 3. Update UI to 'Confirmada'
+        // 3. Actualizar la UI (sin cambios aquí)
         if (statusBadge) {
             statusBadge.textContent = 'confirmada';
             statusBadge.className = 'status-badge status-confirmada';
         }
         confirmarButtonElement.innerHTML = '<i class="fas fa-check"></i> Confirmada';
-        // confirmarButtonElement is already disabled.
         if (cancelarButtonElement) {
-            cancelarButtonElement.style.display = 'none'; // Hide cancel button
+            cancelarButtonElement.style.display = 'none';
         }
 
     } catch (error) {
         console.error('Error al confirmar la cita:', error.message);
-        // More specific alert based on where the error originated
         if (error.message.includes('Supabase')) {
             alert(`Error al actualizar la cita en la base de datos: ${error.message}`);
         } else {
             alert(`Error inesperado al confirmar la cita: ${error.message}`);
         }
-        
 
-        // Revert button state only if it wasn't changed to "Confirmada"
-        // This check ensures that if email sending fails *after* DB success, buttons remain in "Confirmada" state.
         if (confirmarButtonElement.innerHTML.includes('Confirmando...')) {
              confirmarButtonElement.innerHTML = originalButtonText;
              confirmarButtonElement.disabled = false;
