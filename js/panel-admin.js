@@ -140,12 +140,176 @@ async function eliminarHorarioExtra(id) {
     }
 }
 
+/*
+// Funciones para gestionar citas
+$(document).ready(function() {
+    // Inicializar el calendario
+    $('#calendario').fullCalendar({
+        header: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'month,agendaWeek,agendaDay'
+        },
+        events: async function(start, end, timezone, callback) {
+            try {
+                const { data: citas, error } = await supabaseClient
+                    .from('citas')
+                    .select('*')
+                    .order('fecha', { ascending: true });
+
+                if (error) throw error;
+
+                const eventos = citas.map(cita => ({
+                    title: cita.nombre,
+                    start: moment(`${cita.fecha} ${cita.hora}`),
+                    allDay: false
+                }));
+
+                callback(eventos);
+            } catch (error) {
+                console.error('Error al cargar citas:', error);
+                mostrarToast('Error al cargar las citas', 'error');
+            }
+        },
+        editable: true,
+        eventLimit: true,
+        selectable: true,
+        select: function(start, end) {
+            // Lógica para seleccionar una fecha en el calendario
+            $('#fecha-cita').val(moment(start).format('YYYY-MM-DD'));
+            $('#hora-cita').val(moment(start).format('HH:mm'));
+        }
+    });
+
+    // Mostrar el formulario al hacer clic en el botón
+    $('#btn-agregar-cita').on('click', function() {
+        $('#formulario-cita').toggle(); // Alternar la visibilidad del formulario
+    });
+
+    // Manejar el envío del formulario
+    $('#form-agendar-cita').on('submit', async function(event) {
+        event.preventDefault(); // Prevenir el envío normal del formulario
+
+        const nombre = $('#nombre-paciente').val();
+        const telefono = $('#telefono-paciente').val();
+        const email = $('#email-paciente').val();
+        const rut = $('#rut-paciente').val();
+        const fechaNacimiento = $('#fecha-nacimiento').val();
+        const fechaCita = $('#fecha-cita').val();
+        const horaCita = $('#hora-cita').val();
+
+        // Enviar la cita a la base de datos
+        const response = await fetch('/api/agendar-cita', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nombre,
+                telefono,
+                email,
+                rut,
+                fechaNacimiento,
+                fecha: fechaCita,
+                hora: horaCita
+            })
+        });
+
+        if (response.ok) {
+            const cita = await response.json();
+            // Agregar la nueva cita al calendario
+            $('#calendario').fullCalendar('renderEvent', {
+                title: nombre,
+                start: moment(`${fechaCita} ${horaCita}`),
+                allDay: false
+            });
+            mostrarToast('Cita agendada correctamente');
+            $('#formulario-cita').hide(); // Ocultar el formulario después de agendar
+        } else {
+            mostrarToast('Error al agendar la cita', 'error');
+        }
+    });
+});
+*/
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+
+    // CALENDARIO
+    const calendarEl = document.getElementById('calendario');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        slotMinTime: '08:00:00',
+        slotMaxTime: '20:30:00',
+        slotDuration: '00:30:00',
+
+        allDaySlot: false,
+        businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5], // Lunes a Viernes
+            startTime: '08:00',
+            endTime: '20:00'
+        },
+
+        unselectAuto: false,        
+        selectable: true,
+        selectMirror: true,
+        eventMaxStack: 1,
+        eventOrder: 'tipo,-start',
+        eventOverlap: false,
+        events: async function(fetchInfo, successCallback, failureCallback) {
+            try {
+                // Cargar citas desde Supabase
+                const { data: citas, error } = await supabaseClient
+                    .from('citas')
+                    .select('*')
+                    .gte('fecha', fetchInfo.startStr.split('T')[0])
+                    .lte('fecha', fetchInfo.endStr.split('T')[0]);
+                if (error) throw error;
+
+                // Puedes agregar aquí horarios extra si lo deseas, como en panel-medico.js
+
+                const eventos = citas.map(cita => ({
+                    id: `cita-${cita.id}`,
+                    title: cita.nombre,
+                    start: `${cita.fecha}T${cita.hora}`,
+                    backgroundColor: '#2196F3',
+                    borderColor: '#1976D2',
+                    extendedProps: {
+                        citaData: cita
+                    }
+                }));
+
+                successCallback(eventos);
+            } catch (error) {
+                console.error('Error cargando eventos:', error);
+                failureCallback(error);
+            }
+        },
+        select: function(info) {
+            // Al seleccionar un slot, rellenar el formulario
+            document.getElementById('fecha-cita').value = info.startStr.split('T')[0];
+            document.getElementById('hora-cita').value = info.startStr.split('T')[1]?.substring(0,5) || '';
+        }
+    });
+    calendar.render();
+
+    //BOTÓN PARA AGENDAR CITA EN PANEL ADMIN
+    const btnAgregarCita = document.getElementById('btn-agregar-cita');
+    const formularioCita = document.getElementById('formulario-cita');
+    if (btnAgregarCita && formularioCita) {
+        btnAgregarCita.addEventListener('click', () => {
+            formularioCita.style.display = formularioCita.style.display === 'none' ? 'block' : 'none';
+        });
+    }
+    
     // Cargar horarios al iniciar
     cargarHorariosExtra();
     
     // Agregar listener al formulario
     document.getElementById('formulario-horario-extra')
         .addEventListener('submit', agregarHorarioExtra);
-}); 
+});

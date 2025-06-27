@@ -137,3 +137,6 @@ CREATE TRIGGER update_notificaciones_updated_at
     BEFORE UPDATE ON notificaciones
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column(); 
+
+ALTER TABLE citas ADD COLUMN rut VARCHAR NOT NULL;
+ALTER TABLE citas ADD COLUMN fecha_nacimiento DATE NOT NULL;

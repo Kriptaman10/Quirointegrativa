@@ -559,6 +559,15 @@ body {
     transition: all 0.3s ease;
 }
 
+.form-calendario {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
 #calendario {
     max-width: 1000px;
     margin: 0 auto;
@@ -988,7 +997,8 @@ body {
 }
 
 .fc .fc-timegrid-slot {
-    height: 2.5em !important;
+    /*ajustado brevemente el tamaño*/
+    height: 3rem !important;
 }
 
 /* Estilos para eventos ocupados */

@@ -1,5 +1,6 @@
 let horarioExtraSeleccionado = null; // Para almacenar el horario extra seleccionado
 let calendar = null; // Instancia global del calendario
+let pacientesGlobal = [];
 // Configuración de Supabase
 const supabaseConfig = {
     url: 'https://ivneinajrywdljevjgjx.supabase.co',
@@ -14,9 +15,42 @@ const EMAILJS_CONFIG = {
     publicKey: 'fBdM064XPXrY_vm_n'
 };
 
+//Función para eliminar citas pasadas y cancelarlas
+async function cancelarYEliminarCitasPasadas() {
+    const hoy = new Date().toISOString().split('T')[0];
+    try {
+        // Actualizar estado a 'cancelada' para citas pasadas que no estén ya canceladas
+        await supabase
+            .from('citas')
+            .update({ estado: 'cancelada' })
+            .lt('fecha', hoy)
+            .not('estado', 'eq', 'cancelada');
+
+        // Eliminar citas pasadas (opcional, si quieres borrarlas de la base)
+        await supabase
+            .from('citas')
+            .delete()
+            .lt('fecha', hoy);
+
+    } catch (error) {
+        console.error('Error al cancelar/eliminar citas pasadas:', error);
+    }
+}
+
+// Función para quitar tildes y pasar a minúsculas
+function normalizarTexto(texto) {
+    return texto
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar EmailJS
     emailjs.init(EMAILJS_CONFIG.publicKey);
+
+    //Función para cancelar y eliminar citas pasadas
+    cancelarYEliminarCitasPasadas();
 
     // Verificar si el usuario está logueado
     const medicoLogueado = localStorage.getItem('medicoLogueado')
@@ -25,17 +59,88 @@ document.addEventListener('DOMContentLoaded', () => {
         return
     }
 
+    // Función para capitalizar la primera letra de cada palabra
+    function capitalizarNombre(nombre) {
+        return nombre
+            .split(' ')
+            .map(palabra =>
+                palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase()
+            )
+            .join(' ');
+    }
+
+    // Presionar el logo para volver al dashboard
+    const logo = document.querySelector('.logo');
+    if (logo) {
+        logo.style.cursor = 'pointer';
+        logo.addEventListener('click', () => {
+            // Activar tab dashboard
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            const dashboardNav = document.querySelector('.nav-item[data-tab="dashboard"]');
+            if (dashboardNav) dashboardNav.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            const dashboardTab = document.getElementById('dashboard');
+            if (dashboardTab) dashboardTab.classList.add('active');
+            // Opcional: recargar dashboard
+            if (typeof cargarDashboard === 'function') cargarDashboard();
+        });
+    }
+
     // Configurar nombre del médico
     const nombreMedico = localStorage.getItem('nombreMedico')
-    document.getElementById('nombre-medico').textContent = nombreMedico
-    document.getElementById('welcome-name').textContent = nombreMedico.split(' ')[0]
+    const nombreCapitalizado = capitalizarNombre(nombreMedico)
+    document.getElementById('nombre-medico').innerHTML = `<i class="fas fa-user" style="margin-right:7px; color:#05213c;"></i> ${nombreCapitalizado}`;
+    document.getElementById('welcome-name').textContent = nombreCapitalizado.split(' ')[0]
 
-    // Manejar cierre de sesión
-    document.getElementById('btn-logout').addEventListener('click', () => {
-        localStorage.removeItem('medicoLogueado')
-        localStorage.removeItem('nombreMedico')
-        window.location.href = 'login-medico.html'
-    })
+    // Modal de confirmación de logout
+    function mostrarModalLogout() {
+        // Si ya existe, solo mostrarlo
+        let modal = document.getElementById('modalLogout');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modalLogout';
+            modal.innerHTML = `
+                <div class="modal-logout-content">
+                    <h3><i class="fas fa-sign-out-alt"></i> ¿Cerrar sesión?</h3>
+                    <p>¿Seguro que deseas cerrar sesión?</p>
+                    <div class="modal-logout-actions">
+                        <button id="btnLogoutCancelar" class="btn-cancelar">Cancelar</button>
+                        <button id="btnLogoutConfirmar" class="btn-confirmar">Cerrar sesión</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            // Elimina la parte de creación de <style>
+        }
+        modal.style.display = 'flex';
+
+        // Eventos
+        document.getElementById('btnLogoutCancelar').onclick = () => {
+            modal.style.display = 'none';
+        };
+        document.getElementById('btnLogoutConfirmar').onclick = () => {
+            localStorage.removeItem('medicoLogueado');
+            localStorage.removeItem('nombreMedico');
+            window.location.href = 'login-medico.html';
+        };
+        // Cerrar con ESC
+        document.addEventListener('keydown', function escListener(e) {
+            if (e.key === 'Escape') {
+                modal.style.display = 'none';
+                document.removeEventListener('keydown', escListener);
+            }
+        });
+        // Cerrar al hacer click fuera del modal
+        modal.onclick = function(e) {
+            if (e.target === modal) modal.style.display = 'none';
+        };
+    }
+
+    // Reemplaza el listener de logout por el modal bonito
+    document.getElementById('btn-logout').addEventListener('click', (e) => {
+        e.preventDefault();
+        mostrarModalLogout();
+    });
 
     // Manejar navegación por tabs
     const navItems = document.querySelectorAll('.nav-item')
@@ -71,6 +176,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     cargarValoraciones()
                     break
             }
+            // --- Agrega esta línea para hacer scroll al top ---
+            window.scrollTo({ top: 0, behavior: 'auto' });
         })
     })
 
@@ -147,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appointmentsList.innerHTML = citas?.length
                 ? `<div class="appointment-list">
                     ${citas.map(cita => `
-                        <div class="cita" data-id="${cita.id}" data-nombre="${cita.nombre}" data-email="${cita.email}" data-fecha="${cita.fecha}" data-hora="${cita.hora}">
+                        <div class="cita" data-id="${cita.id}" data-nombre="${cita.nombre}" data-email="${cita.email}" data-fecha="${cita.fecha}" data-hora="${cita.hora}" data-telefono="${cita.telefono}">
                             <div>
                                 <strong>${cita.nombre}</strong><br>
                                 ${cita.fecha} - ${cita.hora}<br>
@@ -175,6 +282,120 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error al cargar las citas:', error)
         }
+    }
+
+    async function cargarPacientes() {
+        try {
+            const { data: citas, error } = await supabase
+                .from('citas')
+                .select('*')
+                .order('nombre', { ascending: true });
+
+            if (error) throw error;
+
+            // Agrupar citas por paciente
+            const pacientes = {};
+            citas?.forEach(cita => {
+                if (!pacientes[cita.email]) {
+                    pacientes[cita.email] = {
+                        nombre: cita.nombre,
+                        email: cita.email,
+                        telefono: cita.telefono,
+                        citas: []
+                    };
+                }
+                pacientes[cita.email].citas.push(cita);
+            });
+
+            pacientesGlobal = Object.values(pacientes); // Guarda la lista globalmente
+
+            renderizarPacientes(pacientesGlobal); // <-- SIEMPRE usa esta función
+
+        } catch (error) {
+            console.error('Error al cargar los pacientes:', error);
+        }
+    }
+
+    // Agregar evento de búsqueda
+    const searchInput = document.getElementById('searchPaciente');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = normalizarTexto(this.value);
+            const filtrados = pacientesGlobal.filter(paciente =>
+                normalizarTexto(paciente.nombre).includes(query) ||
+                normalizarTexto(paciente.email).includes(query)
+            );
+            renderizarPacientes(filtrados);
+        });
+    }
+
+    // Función para renderizar la lista de pacientes
+    function renderizarPacientes(pacientes) {
+        const patientsList = document.querySelector('.patients-list');
+        patientsList.innerHTML = pacientes.length
+            ? `<div class="patients-grid">
+                ${pacientes.map((paciente, idx) => {
+                    const iniciales = paciente.nombre
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2);
+
+                    const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
+                    const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
+                    const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
+
+                    return `
+                    <div class="patient-card">
+                        <div class="patient-header">
+                            <div class="patient-avatar">
+                                ${iniciales}
+                            </div>
+                            <div class="patient-info">
+                                <h3>${capitalizarNombre(paciente.nombre)}</h3>
+                                <small>Paciente #${idx + 1}</small>
+                            </div>
+                        </div>
+                        <div class="patient-contact">
+                            <p>
+                                <i class="fas fa-envelope"></i>
+                                ${paciente.email}
+                            </p>
+                            <p>
+                                <i class="fas fa-phone"></i>
+                                ${paciente.telefono}
+                            </p>
+                        </div>
+                        <div class="patient-stats">
+                            <div class="stat-item">
+                                <div class="stat-value">${citasConfirmadas}</div>
+                                <div class="stat-label">Confirmadas</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${citasPendientes}</div>
+                                <div class="stat-label">Pendientes</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${citasCanceladas}</div>
+                                <div class="stat-label">Canceladas</div>
+                            </div>
+                        </div>
+                        <div class="patient-appointments">
+                            <h4>Últimas citas:</h4>
+                            <ul class="appointment-history">
+                                ${paciente.citas.slice(-3).map(cita => `
+                                    <li>
+                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                `}).join('')}
+            </div>`
+            : '<p>No hay pacientes registrados</p>';
     }
 
     // Función para inicializar el calendario
@@ -368,89 +589,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) throw error
 
             // Agrupar citas por paciente
-            const pacientes = {}
+            const pacientes = {};
             citas?.forEach(cita => {
-                if (!pacientes[cita.email]) {
-                    pacientes[cita.email] = {
+                const email = cita.email.trim().toLowerCase();
+                if (!pacientes[email]) {
+                    pacientes[email] = {
                         nombre: cita.nombre,
                         email: cita.email,
                         telefono: cita.telefono,
                         citas: []
                     }
                 }
-                pacientes[cita.email].citas.push(cita)
-            })
-
-            const patientsList = document.querySelector('.patients-list')
-            patientsList.innerHTML = Object.values(pacientes).length
-                ? `<div class="patients-grid">
-                    ${Object.values(pacientes).map(paciente => {
-                        // Obtener iniciales para el avatar
-                        const iniciales = paciente.nombre
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')
-                            .toUpperCase()
-                            .slice(0, 2);
-
-                        // Calcular estadísticas
-                        const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
-                        const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
-                        const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
-
-                        return `
-                        <div class="patient-card">
-                            <div class="patient-header">
-                                <div class="patient-avatar">
-                                    ${iniciales}
-                                </div>
-                                <div class="patient-info">
-                                    <h3>${paciente.nombre}</h3>
-                                    <small>Paciente #${Math.floor(Math.random() * 10000)}</small>
-                                </div>
-                            </div>
-
-                            <div class="patient-contact">
-                                <p>
-                                    <i class="fas fa-envelope"></i>
-                                    ${paciente.email}
-                                </p>
-                                <p>
-                                    <i class="fas fa-phone"></i>
-                                    ${paciente.telefono}
-                                </p>
-                            </div>
-
-                            <div class="patient-stats">
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasConfirmadas}</div>
-                                    <div class="stat-label">Confirmadas</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasPendientes}</div>
-                                    <div class="stat-label">Pendientes</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasCanceladas}</div>
-                                    <div class="stat-label">Canceladas</div>
-                                </div>
-                            </div>
-
-                            <div class="patient-appointments">
-                                <h4>Últimas citas:</h4>
-                                <ul class="appointment-history">
-                                    ${paciente.citas.slice(-3).map(cita => `
-                                        <li>
-                                            <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                            <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                        </li>
-                                    `).join('')}
-                                </ul>
-                            </div>
-                        </div>
-                    `}).join('')}
-                </div>`
-                : '<p>No hay pacientes registrados</p>'
+                pacientes[email].citas.push(cita);
+            });
+            pacientesGlobal = Object.values(pacientes);
+            renderizarPacientes(pacientesGlobal);
 
         } catch (error) {
             console.error('Error al cargar los pacientes:', error)
@@ -494,12 +647,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const estrellas = '★'.repeat(valoracion.estrellas) + '☆'.repeat(5 - valoracion.estrellas)
 
                     return `
-                        <div class="review-item">
+                        <div class="review-item" data-id="${valoracion.id}">
                             <div class="review-header">
                                 <div class="review-user">
                                     <div class="review-avatar">${iniciales}</div>
                                     <div class="review-info">
-                                        <h3>${valoracion.nombre}</h3>
+                                        <h3>${capitalizarNombre(valoracion.nombre)}</h3>
                                         <small>${valoracion.email}</small>
                                     </div>
                                 </div>
@@ -613,6 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const emailPaciente = citaElement.dataset.email;
             const fechaCita = citaElement.dataset.fecha;
             const horaCita = citaElement.dataset.hora;
+            const telefonoPaciente = citaElement.dataset.telefono;
 
             // Basic validation for data attributes
             if (!citaId || !nombrePaciente || !emailPaciente || !fechaCita || !horaCita) {
@@ -627,7 +781,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     nombre: nombrePaciente,
                     email: emailPaciente,
                     fecha: fechaCita,
-                    hora: horaCita
+                    hora: horaCita,
+                    telefono: telefonoPaciente
                 });
             } else if (clickedButton.classList.contains('btn-confirmar')) {
                 if (window.confirmarCita) {
@@ -693,58 +848,77 @@ async function confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, h
     }
 
     try {
-        // 1. Update Supabase
+        // 1. Actualizar Supabase (sin cambios aquí)
         const { error: supabaseError } = await supabase
             .from('citas')
             .update({ estado: 'confirmada' })
             .eq('id', citaId);
 
         if (supabaseError) {
-            // Construct a more informative error message for Supabase errors
             throw new Error(`Error de Supabase al actualizar la cita: ${supabaseError.message} (Código: ${supabaseError.code})`);
         }
 
-        // 2. Send Email
+        // 2. Enviar Correo de Confirmación con formato dual
         try {
+            // a. Crear un objeto Date a partir de los datos de la cita
+            //    Asumimos que fechaCita es 'YYYY-MM-DD' y horaCita es 'HH:MM'
+            const fechaObj = new Date(`${fechaCita}T${horaCita}`);
+
+            // b. Crear variables para MOSTRAR en el cuerpo del correo
+            const fechaParaMostrar = fechaObj.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }); // Ej: "jueves, 26 de junio de 2025"
+
+            const horaParaMostrar = fechaObj.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            }); // Ej: "21:02"
+
+            // c. Crear variables para el ENLACE (link)
+            //    Estas son las mismas que recibimos, en el formato que la página necesita
+            const fechaParaLink = fechaCita; // 'YYYY-MM-DD'
+            const horaParaLink = horaCita;   // 'HH:MM'
+
+            // d. Construir el objeto de parámetros con TODAS las variables
             const templateParams = {
                 email: emailPaciente,
                 nombre: nombrePaciente,
-                fecha: fechaCita,
-                hora: horaCita
+                fecha_mostrar: fechaParaMostrar,
+                hora_mostrar: horaParaMostrar,
+                fecha_link: fechaParaLink,
+                hora_link: horaParaLink
             };
             
             console.log('Enviando correo con parámetros:', templateParams);
             
             await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+
         } catch (emailError) {
             console.error('Error al enviar el correo de confirmación:', emailError);
             alert('Cita confirmada en la base de datos, pero falló el envío del correo de confirmación. Por favor, notifique al paciente manualmente.');
-            // Continue to update UI as confirmed, as DB was successful
         }
 
-        // 3. Update UI to 'Confirmada'
+        // 3. Actualizar la UI (sin cambios aquí)
         if (statusBadge) {
             statusBadge.textContent = 'confirmada';
             statusBadge.className = 'status-badge status-confirmada';
         }
         confirmarButtonElement.innerHTML = '<i class="fas fa-check"></i> Confirmada';
-        // confirmarButtonElement is already disabled.
         if (cancelarButtonElement) {
-            cancelarButtonElement.style.display = 'none'; // Hide cancel button
+            cancelarButtonElement.style.display = 'none';
         }
 
     } catch (error) {
         console.error('Error al confirmar la cita:', error.message);
-        // More specific alert based on where the error originated
         if (error.message.includes('Supabase')) {
             alert(`Error al actualizar la cita en la base de datos: ${error.message}`);
         } else {
             alert(`Error inesperado al confirmar la cita: ${error.message}`);
         }
-        
 
-        // Revert button state only if it wasn't changed to "Confirmada"
-        // This check ensures that if email sending fails *after* DB success, buttons remain in "Confirmada" state.
         if (confirmarButtonElement.innerHTML.includes('Confirmando...')) {
              confirmarButtonElement.innerHTML = originalButtonText;
              confirmarButtonElement.disabled = false;
@@ -817,386 +991,143 @@ function convertirAFormato24Horas(hora12) {
 
 // Función para mostrar el modal de modificación
 function mostrarModalModificacion(cita) {
-    // Crear el modal si no existe
+    // Eliminar el modal anterior si existe
     let modal = document.getElementById('modal-modificar-cita');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'modal-modificar-cita';
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3><i class="fas fa-calendar-edit"></i> Modificar Cita</h3>
-                    <button class="btn-cerrar">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form id="form-modificar-cita">
-                        <div class="form-group">
-                            <label for="nueva-fecha">
-                                <i class="fas fa-calendar"></i> Fecha:
-                            </label>
-                            <input type="date" id="nueva-fecha" required>
-                        </div>
-                        <div class="form-group" style="position:relative;">
-                            <label for="nueva-hora">
-                                <i class="fas fa-clock"></i> Hora:
-                            </label>
-                            <span class="icon-select"><i class="fas fa-clock"></i></span>
-                            <select id="nueva-hora" required>
-                                <option value="17:30">17:30</option>
-                                <option value="18:00">18:00</option>
-                                <option value="18:30">18:30</option>
-                                <option value="19:00">19:00</option>
-                                <option value="19:30">19:30</option>
-                                <option value="20:00">20:00</option>
-                            </select>
-                            <span class="arrow-select"><i class="fas fa-chevron-down"></i></span>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn-guardar">
-                                <i class="fas fa-save"></i> Guardar cambios
-                            </button>
-                            <button type="button" class="btn-cancelar">
-                                <i class="fas fa-times"></i> Cancelar
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        // Agregar estilos al modal
-        const style = document.createElement('style');
-        style.textContent = `
-            .btn-modificar {
-                background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 500;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.3s ease;
-                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
-            }
-            .btn-modificar:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
-                background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
-            }
-            .btn-modificar:active {
-                transform: translateY(0);
-                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
-            }
-            .btn-modificar i {
-                font-size: 0.9em;
-            }
-
-            /* Usar el ID para mayor especificidad y z-index alto */
-            #modalRegistrarPaciente.modal {
-                display: none; /* Valor inicial */
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0,0,0,0.5);
-                z-index: 5000 !important; /* Aumentar z-index */
-                opacity: 0;
-                transition: opacity 0.3s ease;
-                /* Estilos para centrar contenido con Flexbox */
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            #modalRegistrarPaciente.modal.show {
-                opacity: 1;
-            }
-            /* Usar el ID para mayor especificidad */
-            #modalRegistrarPaciente .modal-content {
-                position: relative;
-                background-color: #fff;
-                /* Eliminar margin */
-                margin: 0;
-                padding: 25px;
-                width: 90%;
-                max-width: 500px;
-                border-radius: 12px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-                transform: translateY(-20px);
-                transition: transform 0.3s ease;
-                /* Limitar altura y agregar scroll */
-                max-height: 95vh;
-                overflow-y: auto;
-            }
-            #modalRegistrarPaciente.modal.show .modal-content {
-                transform: translateY(0);
-            }
-            .modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 25px;
-                padding-bottom: 15px;
-                border-bottom: 2px solid #f0f0f0;
-            }
-            .modal-header h3 {
-                color: #2196F3;
-                font-size: 1.4rem;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                margin: 0;
-            }
-            .modal-header h3 i {
-                color: #2196F3;
-            }
-            .btn-cerrar {
-                background: none;
-                border: none;
-                font-size: 28px;
-                cursor: pointer;
-                color: #666;
-                width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                transition: all 0.3s ease;
-            }
-            .btn-cerrar:hover {
-                background-color: #f0f0f0;
-                color: #333;
-            }
-            .form-group {
-                margin-bottom: 20px;
-            }
-            .form-group label {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 8px;
-                font-weight: 500;
-                color: #333;
-            }
-            .form-group label i {
-                color: #2196F3;
-            }
-            .form-group input {
-                width: 100%;
-                padding: 12px;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                font-size: 1rem;
-                transition: all 0.3s ease;
-            }
-            .form-group input:focus {
-                border-color: #2196F3;
-                box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
-                outline: none;
-            }
-            .form-actions {
-                display: flex;
-                justify-content: flex-end;
-                gap: 12px;
-                margin-top: 25px;
-            }
-            .btn-guardar, .btn-cancelar {
-                padding: 12px 24px;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                font-weight: 500;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.3s ease;
-                font-size: 1rem;
-            }
-            .btn-guardar {
-                background-color: #2196F3;
-                color: white;
-                box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
-            }
-            .btn-guardar:hover {
-                background-color: #1976D2;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
-            }
-            .btn-cancelar {
-                background-color: #f5f5f5;
-                color: #666;
-            }
-            .btn-cancelar:hover {
-                background-color: #e0e0e0;
-                color: #333;
-            }
-            @media (max-width: 600px) {
-                .modal-content {
-                    margin: 5% auto;
-                    padding: 20px;
-                }
-                .form-actions {
-                    flex-direction: column;
-                }
-                .btn-guardar, .btn-cancelar {
-                    width: 100%;
-                    justify-content: center;
-                }
-            }
-            .form-group select {
-                width: 100%;
-                padding: 14px 44px 14px 44px;
-                border: 2px solid #2196F3;
-                border-radius: 10px;
-                font-size: 1.15rem;
-                background: #f7fbff;
-                color: #1976D2;
-                font-weight: 600;
-                box-shadow: 0 2px 8px rgba(33,150,243,0.08);
-                transition: border 0.2s, box-shadow 0.2s, background 0.2s;
-                appearance: none;
-                outline: none;
-                cursor: pointer;
-                position: relative;
-            }
-            .form-group select:focus, .form-group select:hover {
-                border-color: #1565c0;
-                background: #e3f2fd;
-                box-shadow: 0 4px 16px rgba(33,150,243,0.13);
-            }
-            .form-group select option {
-                padding: 16px 0;
-                font-size: 1.1rem;
-                color: #1976D2;
-                background: #fff;
-                border-bottom: 1px solid #e3f2fd;
-            }
-            .form-group .icon-select {
-                position: absolute;
-                left: 16px;
-                top: 50%;
-                transform: translateY(-50%);
-                color: #2196F3;
-                font-size: 1.3em;
-                pointer-events: none;
-            }
-            .form-group .arrow-select {
-                position: absolute;
-                right: 18px;
-                top: 50%;
-                transform: translateY(-50%);
-                color: #2196F3;
-                font-size: 1.2em;
-                pointer-events: none;
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Agregar eventos al modal
-        modal.querySelector('.btn-cerrar').addEventListener('click', () => {
-            modal.classList.remove('show');
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        });
-
-        modal.querySelector('.btn-cancelar').addEventListener('click', () => {
-            modal.classList.remove('show');
-            setTimeout(() => {
-                modal.style.display = 'none';
-            }, 300);
-        });
-
-        // Prellenar el formulario con los datos actuales
-        document.getElementById('nueva-fecha').value = cita.fecha;
-        const selectHora = document.getElementById('nueva-hora');
-        
-        // Validar que la hora actual esté en el rango permitido
-        const horaActual = cita.hora;
-        const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
-        
-        if (horasValidas.includes(horaActual)) {
-            selectHora.value = horaActual;
-        } else {
-            // Si la hora actual no es válida, seleccionar la más cercana
-            const horaIndex = horasValidas.findIndex(h => h > horaActual);
-            selectHora.value = horaIndex >= 0 ? horasValidas[horaIndex] : horasValidas[0];
-        }
-
-        // Mostrar el modal con animación
-        modal.style.display = 'flex';
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-
-        modal.querySelector('form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nuevaFecha = document.getElementById('nueva-fecha').value;
-            const nuevaHora = document.getElementById('nueva-hora').value;
-            
-            try {
-                // Verificar disponibilidad
-                const { data: citasExistentes, error: errorConsulta } = await supabase
-            .from('citas')
-                    .select('id')
-                    .eq('fecha', nuevaFecha)
-                    .eq('hora', nuevaHora)
-                    .neq('id', cita.id)
-                    .in('estado', ['pendiente', 'confirmada']);
-
-                if (errorConsulta) throw errorConsulta;
-
-                if (citasExistentes && citasExistentes.length > 0) {
-                    mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
-                    return;
-                }
-
-                // Actualizar la cita
-                const { error: errorActualizacion } = await supabase
-                    .from('citas')
-                    .update({
-                        fecha: nuevaFecha,
-                        hora: nuevaHora
-                    })
-                    .eq('id', cita.id);
-
-                if (errorActualizacion) throw errorActualizacion;
-
-                // Actualizar la UI
-                const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
-                if (citaElement) {
-                    citaElement.dataset.fecha = nuevaFecha;
-                    citaElement.dataset.hora = nuevaHora;
-                    citaElement.querySelector('div:first-child').innerHTML = `
-                        <strong>${cita.nombre}</strong><br>
-                        ${nuevaFecha} - ${nuevaHora}<br>
-                        <small>${cita.email} | ${cita.telefono}</small>
-                    `;
-                }
-
-                // Cerrar el modal y mostrar notificación
-                modal.classList.remove('show');
-                setTimeout(() => {
-                    modal.style.display = 'none';
-                }, 300);
-                mostrarNotificacion('Cita modificada exitosamente', 'success');
-
-                // Actualizar el dashboard si está visible
-                if (document.getElementById('dashboard').classList.contains('active')) {
-                    cargarDashboard();
-                }
-    } catch (error) {
-                console.error('Error al modificar la cita:', error);
-                mostrarNotificacion('Error al modificar la cita', 'error');
-            }
-        });
+    if (modal) {
+        modal.remove();
     }
+
+    // Crear el modal
+    modal = document.createElement('div');
+    modal.id = 'modal-modificar-cita';
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-calendar-edit"></i> Modificar Cita</h3>
+                <button class="btn-cerrar" type="button">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-modificar-cita">
+                    <div class="form-group">
+                        <label for="nueva-fecha">
+                            <i class="fas fa-calendar"></i> Fecha:
+                        </label>
+                        <input type="date" id="nueva-fecha" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nueva-hora">
+                            <i class="fas fa-clock"></i> Hora:
+                        </label>
+                        <select id="nueva-hora" required>
+                            <option value="17:30">17:30</option>
+                            <option value="18:00">18:00</option>
+                            <option value="18:30">18:30</option>
+                            <option value="19:00">19:00</option>
+                            <option value="19:30">19:30</option>
+                            <option value="20:00">20:00</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-guardar">
+                            <i class="fas fa-save"></i> Guardar cambios
+                        </button>
+                        <button type="button" class="btn-cancelar">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Prellenar el formulario con los datos actuales
+    document.getElementById('nueva-fecha').value = cita.fecha;
+    const selectHora = document.getElementById('nueva-hora');
+    const horaActual = cita.hora.slice(0,5); // Asegura formato HH:MM
+    const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
+    if (horasValidas.includes(horaActual)) {
+        selectHora.value = horaActual;
+    } else {
+        const horaIndex = horasValidas.findIndex(h => h > horaActual);
+        selectHora.value = horaIndex >= 0 ? horasValidas[horaIndex] : horasValidas[0];
+    }
+
+    // Mostrar el modal
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+
+    // Cerrar modal
+    function cerrar() {
+        modal.classList.remove('show');
+        setTimeout(() => {
+            if (modal.parentNode) modal.parentNode.removeChild(modal);
+        }, 300);
+    }
+    modal.querySelector('.btn-cerrar').onclick = cerrar;
+    modal.querySelector('.btn-cancelar').onclick = cerrar;
+    modal.onclick = function(e) {
+        if (e.target === modal) cerrar();
+    };
+    document.addEventListener('keydown', function escListener(e) {
+        if (e.key === 'Escape') {
+            cerrar();
+            document.removeEventListener('keydown', escListener);
+        }
+    });
+
+    // Submit
+    modal.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nuevaFecha = document.getElementById('nueva-fecha').value;
+        const nuevaHora = document.getElementById('nueva-hora').value;
+        try {
+            // Verificar disponibilidad
+            const { data: citasExistentes, error: errorConsulta } = await supabase
+                .from('citas')
+                .select('id')
+                .eq('fecha', nuevaFecha)
+                .eq('hora', nuevaHora)
+                .neq('id', cita.id)
+                .in('estado', ['pendiente', 'confirmada']);
+            if (errorConsulta) throw errorConsulta;
+            if (citasExistentes && citasExistentes.length > 0) {
+                mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
+                return;
+            }
+            // Actualizar la cita
+            const { error: errorActualizacion } = await supabase
+                .from('citas')
+                .update({
+                    fecha: nuevaFecha,
+                    hora: nuevaHora
+                })
+                .eq('id', cita.id);
+            if (errorActualizacion) throw errorActualizacion;
+            // Actualizar la UI
+            const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
+            if (citaElement) {
+                citaElement.dataset.fecha = nuevaFecha;
+                citaElement.dataset.hora = nuevaHora;
+                citaElement.querySelector('div:first-child').innerHTML = `
+                    <strong>${cita.nombre}</strong><br>
+                    ${nuevaFecha} - ${nuevaHora}<br>
+                    <small>${cita.email} | ${cita.telefono}</small>
+                `;
+            }
+            cerrar();
+            mostrarNotificacion('Cita modificada exitosamente', 'success');
+            if (document.getElementById('dashboard').classList.contains('active')) {
+                cargarDashboard();
+            }
+        } catch (error) {
+            console.error('Error al modificar la cita:', error);
+            mostrarNotificacion('Error al modificar la cita', 'error');
+        }
+    });
 }
 
 // Función para mostrar notificaciones
@@ -1338,6 +1269,8 @@ function cerrarModalRegistrar() {
     horarioExtraSeleccionado = null;
 }
 
+let calendarForm = null; // Instancia del calendario del formulario
+
 // Asegura que los elementos existen antes de agregar listeners
 document.addEventListener('DOMContentLoaded', function() {
     const cerrarBtn = document.getElementById('cerrarModalRegistrar');
@@ -1352,67 +1285,153 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    const form = document.getElementById('formRegistrarPaciente');
-    if (form) {
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            if (!horarioExtraSeleccionado) {
-                mostrarNotificacion('Error: No hay horario seleccionado', 'error');
-                return;
-            }
-            const nombre = document.getElementById('nombrePaciente').value.trim();
-            const email = document.getElementById('emailPaciente').value.trim();
-            const telefono = document.getElementById('telefonoPaciente').value.trim();
-            if (!nombre || !email || !telefono) {
-                mostrarNotificacion('Por favor complete todos los campos', 'error');
-                return;
-            }
-            if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
-                mostrarNotificacion('Por favor ingrese un email válido', 'error');
-                return;
-            }
-            try {
-                // Verificar que no exista una cita en la misma fecha y hora
-                const { data: citasExistentes, error: errorVerificacion } = await supabase
-                    .from('citas')
-                    .select('id')
-                    .eq('fecha', horarioExtraSeleccionado.fecha)
-                    .eq('hora', horarioExtraSeleccionado.hora)
-                    .in('estado', ['pendiente', 'confirmada']);
-                if (errorVerificacion) throw errorVerificacion;
-                if (citasExistentes && citasExistentes.length > 0) {
-                    mostrarNotificacion('Ya existe una cita registrada en este horario', 'error');
-                    return;
+
+    // Mostrar/ocultar formulario de nueva cita
+    const btnAgregarCita = document.getElementById('btn-agregar-cita');
+    const formularioCitaDiv = document.getElementById('formulario-cita'); // <-- el DIV contenedor
+    const formularioCita = document.getElementById('form-agendar-cita'); // <-- el FORM
+    const calendarioDiv = document.getElementById('form-calendario');
+
+    if (btnAgregarCita && formularioCitaDiv && formularioCita && calendarioDiv) {
+        btnAgregarCita.addEventListener('click', () => {
+            const mostrar = formularioCitaDiv.style.display === 'none' || formularioCitaDiv.style.display === '';
+            formularioCitaDiv.style.display = mostrar ? 'block' : 'none';
+
+            if (mostrar) {
+                if (!calendarForm) {
+                    calendarForm = new FullCalendar.Calendar(calendarioDiv, {
+                        initialView: 'timeGridWeek',
+                        locale: 'es',
+                        height: 'auto',
+                        contentHeight: 'auto',
+                        headerToolbar: {
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                        },
+                        slotMinTime: '17:30:00',
+                        slotMaxTime: '20:00:00',
+                        slotDuration: '00:30:00',
+                        unselectAuto: false,
+                        selectable: true,
+                        selectMirror: true,
+                        //Permite que no se pueda seleccionar un slot que ya tenga un evento
+                        selectOverlap: false,
+                        allDaySlot: false,
+                        businessHours: {
+                            daysOfWeek: [1, 2, 3, 4, 5], // Lunes a Viernes
+                            startTime: '08:00',
+                            endTime: '20:00'
+                        },
+
+                        validRange: {
+                            start: new Date().toISOString().split('T')[0] // Solo hoy y futuro
+                        },
+
+                        events: async function(fetchInfo, successCallback, failureCallback) {
+                            try {
+                                const { data: citas, error } = await supabase
+                                    .from('citas')
+                                    .select('*')
+                                    .gte('fecha', fetchInfo.startStr.split('T')[0])
+                                    .lte('fecha', fetchInfo.endStr.split('T')[0]);
+                                if (error) throw error;
+
+                                const eventos = citas.map(cita => ({
+                                    id: `cita-${cita.id}`,
+                                    title: cita.nombre,
+                                    start: `${cita.fecha}T${cita.hora}`,
+                                    backgroundColor:
+                                        cita.estado === 'pendiente' ? '#f39c12' : // Naranja para reservadas
+                                        cita.estado === 'confirmada' ? '#e74c3c' : // Rojo para ocupadas
+                                        '#2196F3', // Azul por defecto
+                                    borderColor:
+                                        cita.estado === 'pendiente' ? '#e67e22' :
+                                        cita.estado === 'confirmada' ? '#c0392b' :
+                                        '#1976D2',
+                                    extendedProps: {
+                                        citaData: cita
+                                    }
+                                }));
+
+                                successCallback(eventos);
+                            } catch (error) {
+                                console.error('Error cargando eventos:', error);
+                                failureCallback(error);
+                            }
+                        },
+                        select: function(info) {
+                            // Al seleccionar un slot, rellenar el formulario
+                            const fechaInput = document.getElementById('fecha-cita');
+                            const horaInput = document.getElementById('hora-cita');
+                            if (fechaInput && horaInput) {
+                                fechaInput.value = info.startStr.split('T')[0];
+                                horaInput.value = info.startStr.split('T')[1]?.substring(0,5) || '';
+                            }
+                        }
+                    });
+                    calendarForm.render();
                 }
-                // Insertar nueva cita
-                const { error } = await supabase
-                    .from('citas')
-                    .insert([{
-                        nombre: nombre,
-                        email: email,
-                        telefono: telefono,
-                        fecha: horarioExtraSeleccionado.fecha,
-                        hora: horarioExtraSeleccionado.hora,
-                        estado: 'confirmada'
-                    }]);
-                if (error) throw error;
-                // Eliminar el horario extra
-                await supabase
-                    .from('horarios_disponibles')
-                    .delete()
-                    .eq('id', horarioExtraSeleccionado.id);
-                mostrarNotificacion('Paciente registrado exitosamente', 'success');
-                cerrarModalRegistrar();
-                // Actualizar el calendario
-                if (typeof calendar !== 'undefined' && calendar.refetchEvents) {
-                    calendar.refetchEvents();
+            } else {
+                if (calendarForm) {
+                    calendarForm.destroy();
+                    calendarForm = null;
                 }
-            } catch (error) {
-                console.error('Error registrando paciente:', error);
-                mostrarNotificacion('Error al registrar el paciente: ' + error.message, 'error');
+                calendarioDiv.innerHTML = '';
             }
         });
+
+        formularioCita.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre-paciente').value.trim();
+            const email = document.getElementById('email-paciente').value.trim();
+            const telefono = document.getElementById('telefono-paciente').value.trim();
+            const fecha = document.getElementById('fecha-cita').value;
+            let hora = document.getElementById('hora-cita').value;
+            if (hora.length === 5) hora = hora + ':00';
+
+            if (!nombre || !email || !telefono || !fecha || !hora) {
+                mostrarNotificacion('Completa todos los campos', 'error');
+                return;
+            }
+
+            const { data: citasExistentes, error: errorVerif } = await supabase
+                .from('citas')
+                .select('id')
+                .eq('fecha', fecha)
+                .eq('hora', hora)
+                .in('estado', ['pendiente', 'confirmada']);
+            if (errorVerif) {
+                mostrarNotificacion('Error al verificar disponibilidad', 'error');
+                return;
+            }
+            if (citasExistentes && citasExistentes.length > 0) {
+                mostrarNotificacion('Ya existe una cita en ese horario', 'error');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('citas')
+                .insert([{
+                    nombre,
+                    email,
+                    telefono,
+                    fecha,
+                    hora,
+                    estado: 'pendiente'
+                }]);
+            if (error) {
+                mostrarNotificacion('Error al guardar la cita', 'error');
+                return;
+            }
+
+            mostrarNotificacion('Cita agendada correctamente', 'success');
+            if (typeof cargarCitas === 'function') cargarCitas(); // <-- recarga la lista de citas
+            formularioCita.reset();
+            if (calendarForm) calendarForm.refetchEvents();
+        });
     }
+
 });
 
 // =================== FIN MODAL Y REGISTRO DE PACIENTE EN HORARIO EXTRA ===================
