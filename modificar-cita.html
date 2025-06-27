@@ -93,24 +93,74 @@
       background: linear-gradient(45deg, #1e3a52, #2c4964);
     }
     
+    .btn-danger {
+      background: linear-gradient(45deg, #dc3545, #c82333);
+      border: none;
+    }
+    
+    .btn-danger:hover {
+      background: linear-gradient(45deg, #c82333, #dc3545);
+    }
+    
     .spinner-border {
       width: 3rem;
       height: 3rem;
     }
     
-    #calendar-modificar {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    .form-control:disabled {
+      background-color: #f8f9fa;
+      border-color: #dee2e6;
+      color: #6c757d;
     }
     
-    .fc-event {
-      cursor: pointer;
+    .notificacion {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 4px;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
     }
     
-    .fc-daygrid-event {
-      white-space: normal;
+    .notificacion.success {
+      background-color: #4CAF50;
+    }
+    
+    .notificacion.error {
+      background-color: #f44336;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+    
+    .status-badge {
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+    
+    .status-pendiente {
+      background-color: #ffc107;
+      color: #212529;
+    }
+    
+    .status-confirmada {
+      background-color: #28a745;
+      color: white;
+    }
+    
+    .status-cancelada {
+      background-color: #dc3545;
+      color: white;
     }
   </style>
 </head>
@@ -145,7 +195,7 @@
         <!-- Contenido Principal -->
         <div id="content-state" class="row" style="display: none;">
           <!-- Columna Izquierda: Detalles y Acciones -->
-          <div class="col-lg-5 mb-4">
+          <div class="col-lg-6 mb-4">
             <div class="card mb-4">
               <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-person-circle me-2"></i>Tus Datos</h5>
@@ -154,11 +204,15 @@
                 <form>
                   <div class="mb-3">
                     <label for="nombrePaciente" class="form-label">Nombre</label>
-                    <input type="text" id="nombrePaciente" class="form-control" readonly>
+                    <input type="text" id="nombrePaciente" class="form-control" readonly disabled>
+                  </div>
+                  <div class="mb-3">
+                    <label for="emailPaciente" class="form-label">Email</label>
+                    <input type="email" id="emailPaciente" class="form-control" readonly disabled>
                   </div>
                   <div class="mb-3">
                     <label for="telefonoPaciente" class="form-label">Teléfono</label>
-                    <input type="text" id="telefonoPaciente" class="form-control" readonly>
+                    <input type="text" id="telefonoPaciente" class="form-control" readonly disabled>
                   </div>
                 </form>
               </div>
@@ -184,14 +238,37 @@
             </div>
           </div>
           
-          <!-- Columna Derecha: Calendario -->
-          <div class="col-lg-7">
+          <!-- Columna Derecha: Selección de horarios -->
+          <div class="col-lg-6">
             <div class="card">
               <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Selecciona un nuevo horario disponible</h5>
+                <h5 class="mb-0"><i class="bi bi-calendar3 me-2"></i>Selecciona un nuevo horario</h5>
               </div>
               <div class="card-body">
-                <div id="calendar-modificar"></div>
+                <div class="mb-3">
+                  <label for="nueva-fecha" class="form-label">
+                    <i class="bi bi-calendar"></i> Nueva Fecha:
+                  </label>
+                  <input type="date" id="nueva-fecha" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                  <label for="nueva-hora" class="form-label">
+                    <i class="bi bi-clock"></i> Nueva Hora:
+                  </label>
+                  <select id="nueva-hora" class="form-control" required>
+                    <option value="">Selecciona una hora</option>
+                    <option value="17:30">17:30</option>
+                    <option value="18:00">18:00</option>
+                    <option value="18:30">18:30</option>
+                    <option value="19:00">19:00</option>
+                    <option value="19:30">19:30</option>
+                    <option value="20:00">20:00</option>
+                  </select>
+                </div>
+                <div id="horario-ocupado" class="alert alert-danger" style="display: none;">
+                  <i class="bi bi-exclamation-triangle me-2"></i>
+                  Este horario ya está ocupado. Por favor, seleccione otro.
+                </div>
               </div>
             </div>
           </div>
@@ -201,7 +278,7 @@
         <div id="error-state" style="display: none;" class="alert alert-danger text-center">
           <i class="bi bi-exclamation-triangle-fill fs-1 text-danger"></i>
           <h4 class="mt-3">Error</h4>
-          <p>No se pudo encontrar la cita solicitada. Por favor, verifica el enlace o contacta con nosotros.</p>
+          <p id="error-message">No se pudo encontrar la cita solicitada. Por favor, verifica el enlace o contacta con nosotros.</p>
           <button class="btn btn-outline-danger" onclick="window.history.back()">
             <i class="bi bi-arrow-left me-2"></i>Volver
           </button>
@@ -213,191 +290,369 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   
   <!-- Script principal -->
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       // 1. CONFIGURACIÓN Y REFERENCIAS AL DOM
-      const SUPABASE_URL = 'https://ivbghvmhcmshifbspuxy.supabase.co';
-      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2Ymdodm1oY21zaGlmYnNwdXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY5OTc5MTUsImV4cCI6MjAzMjU3MzkxNX0.dIN1a9m6n83sW5h1h3BT0IftB9BAK7oARyn64_BQl_U';
+      const SUPABASE_URL = 'https://ivneinajrywdljevjgjx.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bmVpbmFqcnl3ZGxqZXZqZ2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0ODA5NDIsImV4cCI6MjA2MTA1Njk0Mn0.ySUivP0cdQ8_c1y7BE7uxEH_F3fKawxtuyi0IiMfLwQ';
+      
+      // Configuración de EmailJS
+      const EMAILJS_CONFIG = {
+        serviceId: 'service_b0m35xv',
+        templateId: 'template_36ity4i', // Template para cancelación
+        publicKey: 'fBdM064XPXrY_vm_n'
+      };
       
       if (typeof supabase === 'undefined') {
         showState('error');
+        document.getElementById('error-message').textContent = 'Error al cargar la aplicación. Por favor, recarga la página.';
         return;
       }
       
       const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      
+      // Inicializar EmailJS
+      emailjs.init(EMAILJS_CONFIG.publicKey);
 
       const loadingState = document.getElementById('loading-state');
       const contentState = document.getElementById('content-state');
       const errorState = document.getElementById('error-state');
       const nombreInput = document.getElementById('nombrePaciente');
+      const emailInput = document.getElementById('emailPaciente');
       const telefonoInput = document.getElementById('telefonoPaciente');
       const detallesCitaDiv = document.getElementById('detalles-cita');
-      const calendarEl = document.getElementById('calendar-modificar');
       const btnConfirmar = document.getElementById('btn-confirmar-cambio');
       const btnCancelar = document.getElementById('btn-cancelar-cita');
       const infoSeleccionDiv = document.getElementById('info-seleccion');
+      const nuevaFechaInput = document.getElementById('nueva-fecha');
+      const nuevaHoraSelect = document.getElementById('nueva-hora');
+      const horarioOcupadoDiv = document.getElementById('horario-ocupado');
 
       let citaActual = null;
-      let horarioActual = null;
-      let nuevaSeleccion = null;
-      let calendar = null;
 
-      // =====================================================================
-      // ===== INICIO DE LA MODIFICACIÓN PARA PRUEBAS (SIN ID EN URL) =====
-      // =====================================================================
-
-      // 2. OBTENER ID DE LA URL Y VALIDAR (SECCIÓN COMENTADA)
-      /*
-      const params = new URLSearchParams(window.location.search);
-      const citaId = params.get('id');
-
-      if (!citaId) {
-        console.error('No se proporcionó ID de cita en la URL');
-        showState('error');
-        return;
-      }
-      */
-      
-      // Función para mostrar el estado correcto de la UI (SIN CAMBIOS)
+      // Función para mostrar el estado correcto de la UI
       function showState(state) {
         loadingState.style.display = 'none';
         contentState.style.display = 'none';
         errorState.style.display = 'none';
-        document.getElementById(state + '-state').style.display = (state === 'content') ? 'flex' : 'block';
+        
+        if (state === 'content') {
+          contentState.style.display = 'flex';
+        } else {
+          document.getElementById(state + '-state').style.display = 'block';
+        }
       }
 
-      // 3. LÓGICA DE CARGA DE DATOS (MODIFICADA PARA USAR DATOS FALSOS)
-      try {
-        console.log('Modo de prueba: Usando datos falsos.');
-        
-        // DATOS FALSOS PARA SIMULAR UNA CITA ENCONTRADA
-        citaActual = {
-          identificacion: 'test-id-123',
-          nombre: 'Paciente de Prueba',
-          teléfono: '912345678',
-          horario_id: 'test-horario-id-456'
-        };
+      // 2. OBTENER PARÁMETROS DE LA URL
+      const params = new URLSearchParams(window.location.search);
+      const fechaParam = params.get('fecha');
+      const horaParam = params.get('hora');
 
-        horarioActual = {
-          id: 'test-horario-id-456',
-          fecha_hora_inicio: new Date().toISOString(), // Simula que la cita es ahora
-          fecha_hora_fin: new Date(new Date().getTime() + 60 * 60 * 1000).toISOString() // 1 hora después
-        };
-
-        console.log('Cita de prueba:', citaActual);
-        console.log('Horario de prueba:', horarioActual);
-        
-        // Rellenamos los datos del paciente (igual que antes)
-        nombreInput.value = citaActual.nombre || '';
-        telefonoInput.value = citaActual.teléfono || '';
-        
-        // Mostramos los detalles de la cita actual (igual que antes)
-        const fechaInicio = new Date(horarioActual.fecha_hora_inicio);
-        const fechaStr = fechaInicio.toLocaleString('es-ES', { 
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-        
-        detallesCitaDiv.innerHTML = `
-          <i class="bi bi-calendar-event me-2"></i>
-          Tu cita está programada para:<br>
-          <strong class="fs-5">${fechaStr}</strong>
-        `;
-        
-        // Ahora que tenemos los datos falsos, inicializamos el calendario
-        initCalendar();
-        
-        // Mostramos el contenido principal
-        showState('content');
-        
-      } catch (error) {
-        // En modo de prueba, este bloque de error no debería ejecutarse, pero lo dejamos por seguridad.
-        console.error('Error en el modo de prueba:', error);
+      if (!fechaParam || !horaParam) {
+        console.error('No se proporcionaron fecha y hora en la URL');
         showState('error');
+        document.getElementById('error-message').textContent = 'Faltan parámetros en la URL. Por favor, usa el enlace correcto del correo.';
         return;
       }
-      
-      // =====================================================================
-      // ===== FIN DE LA MODIFICACIÓN PARA PRUEBAS ===========================
-      // =====================================================================
 
-      // 4. INICIALIZACIÓN DEL CALENDARIO (SIN CAMBIOS, FUNCIONARÁ CON LOS DATOS FALSOS)
-      function initCalendar() {
-        if (!calendarEl) {
-          console.error('Elemento del calendario no encontrado');
+      // 3. BUSCAR LA CITA EN LA BASE DE DATOS
+      try {
+        console.log('Buscando cita con fecha:', fechaParam, 'y hora:', horaParam);
+        
+        const { data: citas, error } = await supabaseClient
+          .from('citas')
+          .select('*')
+          .eq('fecha', fechaParam)
+          .eq('hora', horaParam)
+          .in('estado', ['pendiente', 'confirmada']); // Solo citas activas
+
+        if (error) {
+          console.error('Error al consultar Supabase:', error);
+          throw error;
+        }
+
+        if (!citas || citas.length === 0) {
+          console.error('No se encontró la cita');
+          showState('error');
+          document.getElementById('error-message').textContent = 'No se encontró una cita activa para la fecha y hora especificadas.';
           return;
         }
 
-        calendar = new FullCalendar.Calendar(calendarEl, {
-          initialView: 'timeGridWeek',
-          locale: 'es',
-          headerToolbar: { 
-            left: 'prev,next today', center: 'title', right: 'timeGridWeek,dayGridMonth' 
-          },
-          businessHours: { daysOfWeek: [1, 2, 3, 4, 5, 6], startTime: '09:00', endTime: '19:00' },
-          selectable: true,
-          selectOverlap: false,
-          selectConstraint: 'businessHours',
-          height: 'auto',
-          events: async (fetchInfo, successCallback, failureCallback) => {
-            // Esta parte seguirá funcionando, obtendrá los horarios ocupados reales de la base de datos
-            // y los mostrará, lo cual es útil para las pruebas.
-            try {
-              const { data: citasOcupadas, error } = await supabaseClient.from('citas').select('horario_id');
-              if (error) throw error;
-              
-              const horariosOcupadosIds = citasOcupadas
-                .map(c => c.horario_id)
-                .filter(id => id && id !== (citaActual ? citaActual.horario_id : null)); // Usamos el ID de prueba
+        if (citas.length > 1) {
+          console.warn('Se encontraron múltiples citas para la misma fecha y hora');
+        }
 
-              if (horariosOcupadosIds.length === 0) {
-                successCallback([]); return;
-              }
-
-              const { data: horarios } = await supabaseClient.from('horarios_disponibles').select('id, fecha_hora_inicio, fecha_hora_fin').in('id', horariosOcupadosIds);
-              
-              const eventos = (horarios || []).map(h => ({
-                id: h.id, title: 'Ocupado', start: h.fecha_hora_inicio, end: h.fecha_hora_fin, display: 'background', backgroundColor: '#dc3545'
-              }));
-              
-              if (horarioActual) {
-                eventos.push({
-                  id: 'current', title: 'Tu cita actual', start: horarioActual.fecha_hora_inicio, end: horarioActual.fecha_hora_fin, backgroundColor: '#28a745'
-                });
-              }
-              successCallback(eventos);
-            } catch (error) { failureCallback(error); }
-          },
-          select: (selectionInfo) => {
-            // ... (Esta función no necesita cambios)
-            nuevaSeleccion = selectionInfo;
-            const fechaStr = selectionInfo.start.toLocaleString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-            infoSeleccionDiv.innerHTML = `<i class="bi bi-clock me-2"></i><strong>Nuevo horario seleccionado:</strong><br><span class="fs-6">${fechaStr}</span>`;
-            infoSeleccionDiv.style.display = 'block';
-            btnConfirmar.disabled = false;
-          },
-          unselect: () => {
-            // ... (Esta función no necesita cambios)
-            nuevaSeleccion = null;
-            infoSeleccionDiv.style.display = 'none';
-            btnConfirmar.disabled = true;
-          }
+        citaActual = citas[0];
+        console.log('Cita encontrada:', citaActual);
+        
+        // Rellenar los datos del paciente (solo lectura)
+        nombreInput.value = citaActual.nombre || '';
+        emailInput.value = citaActual.email || '';
+        telefonoInput.value = citaActual.telefono || '';
+        
+        // Mostrar los detalles de la cita actual
+        const fechaObj = new Date(citaActual.fecha + 'T' + citaActual.hora);
+        const fechaStr = fechaObj.toLocaleString('es-ES', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit'
         });
         
-        calendar.render();
+        detallesCitaDiv.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <i class="bi bi-calendar-event me-2"></i>
+              Tu cita está programada para:<br>
+              <strong class="fs-5">${fechaStr}</strong>
+            </div>
+            <span class="status-badge status-${citaActual.estado}">${citaActual.estado}</span>
+          </div>
+        `;
+        
+        // Configurar fecha mínima (hoy)
+        const hoy = new Date().toISOString().split('T')[0];
+        nuevaFechaInput.min = hoy;
+        
+        // Mostrar el contenido principal
+        showState('content');
+        
+      } catch (error) {
+        console.error('Error al cargar la cita:', error);
+        showState('error');
+        document.getElementById('error-message').textContent = 'Error al conectar con la base de datos. Por favor, intenta más tarde.';
+        return;
       }
 
-      // 5. MANEJADORES DE EVENTOS PARA LOS BOTONES (SIN CAMBIOS)
-      // Estos botones seguirán intentando hacer operaciones reales en Supabase,
-      // lo cual es perfecto para probar si la lógica de UPDATE y DELETE funciona.
-      // Simplemente fallarán si los IDs de prueba no existen en la base de datos,
-      // pero te permitirán probar toda la interacción del usuario.
-      
-      btnConfirmar.addEventListener('click', async () => { /* ... tu código existente ... */ });
-      btnCancelar.addEventListener('click', async () => { /* ... tu código existente ... */ });
+      // 4. FUNCIÓN PARA VERIFICAR DISPONIBILIDAD
+      async function verificarDisponibilidad() {
+        const fecha = nuevaFechaInput.value;
+        const hora = nuevaHoraSelect.value;
+        
+        if (!fecha || !hora) {
+          horarioOcupadoDiv.style.display = 'none';
+          btnConfirmar.disabled = true;
+          infoSeleccionDiv.style.display = 'none';
+          return;
+        }
+
+        try {
+          const { data: citasExistentes, error } = await supabaseClient
+            .from('citas')
+            .select('id')
+            .eq('fecha', fecha)
+            .eq('hora', hora)
+            .neq('id', citaActual.id)
+            .in('estado', ['pendiente', 'confirmada']);
+
+          if (error) throw error;
+
+          if (citasExistentes && citasExistentes.length > 0) {
+            horarioOcupadoDiv.style.display = 'block';
+            btnConfirmar.disabled = true;
+            infoSeleccionDiv.style.display = 'none';
+          } else {
+            horarioOcupadoDiv.style.display = 'none';
+            btnConfirmar.disabled = false;
+            
+            // Mostrar información del nuevo horario seleccionado
+            const fechaObj = new Date(fecha + 'T' + hora);
+            const fechaStr = fechaObj.toLocaleString('es-ES', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit'
+            });
+            
+            infoSeleccionDiv.innerHTML = `
+              <i class="bi bi-clock me-2"></i><strong>Nuevo horario seleccionado:</strong><br>
+              <span class="fs-6">${fechaStr}</span>
+            `;
+            infoSeleccionDiv.style.display = 'block';
+          }
+        } catch (error) {
+          console.error('Error al verificar disponibilidad:', error);
+          mostrarNotificacion('Error al verificar disponibilidad', 'error');
+        }
+      }
+
+      // 5. EVENT LISTENERS
+      nuevaFechaInput.addEventListener('change', verificarDisponibilidad);
+      nuevaHoraSelect.addEventListener('change', verificarDisponibilidad);
+
+      // 6. CONFIRMAR CAMBIO DE HORARIO
+      btnConfirmar.addEventListener('click', async () => {
+        const fecha = nuevaFechaInput.value;
+        const hora = nuevaHoraSelect.value;
+        
+        if (!fecha || !hora) {
+          mostrarNotificacion('Por favor, selecciona una fecha y hora', 'error');
+          return;
+        }
+
+        const originalText = btnConfirmar.innerHTML;
+        btnConfirmar.innerHTML = '<i class="bi bi-spinner-border-sm spinner-border me-2"></i>Actualizando...';
+        btnConfirmar.disabled = true;
+
+        try {
+          // Verificar disponibilidad una vez más
+          const { data: citasExistentes, error: errorVerificacion } = await supabaseClient
+            .from('citas')
+            .select('id')
+            .eq('fecha', fecha)
+            .eq('hora', hora)
+            .neq('id', citaActual.id)
+            .in('estado', ['pendiente', 'confirmada']);
+
+          if (errorVerificacion) throw errorVerificacion;
+
+          if (citasExistentes && citasExistentes.length > 0) {
+            mostrarNotificacion('Este horario ya no está disponible', 'error');
+            btnConfirmar.innerHTML = originalText;
+            btnConfirmar.disabled = false;
+            await verificarDisponibilidad();
+            return;
+          }
+
+          // Actualizar la cita
+          const { error: errorActualizacion } = await supabaseClient
+            .from('citas')
+            .update({
+              fecha: fecha,
+              hora: hora
+            })
+            .eq('id', citaActual.id);
+
+          if (errorActualizacion) throw errorActualizacion;
+
+          // Actualizar los datos locales
+          citaActual.fecha = fecha;
+          citaActual.hora = hora;
+
+          // Actualizar la UI
+          const fechaObj = new Date(fecha + 'T' + hora);
+          const fechaStr = fechaObj.toLocaleString('es-ES', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit'
+          });
+          
+          detallesCitaDiv.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <i class="bi bi-calendar-event me-2"></i>
+                Tu cita está programada para:<br>
+                <strong class="fs-5">${fechaStr}</strong>
+              </div>
+              <span class="status-badge status-${citaActual.estado}">${citaActual.estado}</span>
+            </div>
+          `;
+
+          // Limpiar selección
+          nuevaFechaInput.value = '';
+          nuevaHoraSelect.value = '';
+          infoSeleccionDiv.style.display = 'none';
+          btnConfirmar.disabled = true;
+
+          mostrarNotificacion('Cita modificada exitosamente', 'success');
+
+        } catch (error) {
+          console.error('Error al modificar la cita:', error);
+          mostrarNotificacion('Error al modificar la cita', 'error');
+        } finally {
+          btnConfirmar.innerHTML = originalText;
+          btnConfirmar.disabled = false;
+        }
+      });
+
+      // 7. CANCELAR CITA
+      btnCancelar.addEventListener('click', async () => {
+        const result = await Swal.fire({
+          title: '¿Estás seguro?',
+          text: 'Esta acción no se puede deshacer',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Sí, cancelar cita',
+          cancelButtonText: 'No, mantener cita'
+        });
+
+        if (!result.isConfirmed) return;
+
+        const originalText = btnCancelar.innerHTML;
+        btnCancelar.innerHTML = '<i class="bi bi-spinner-border-sm spinner-border me-2"></i>Cancelando...';
+        btnCancelar.disabled = true;
+
+        try {
+          // Eliminar la cita
+          const { error: errorEliminacion } = await supabaseClient
+            .from('citas')
+            .delete()
+            .eq('id', citaActual.id);
+
+          if (errorEliminacion) throw errorEliminacion;
+
+          // Enviar correo de cancelación
+          try {
+            const templateParams = {
+              nombre: citaActual.nombre,
+              fecha: citaActual.fecha,
+              hora: citaActual.hora,
+              email: citaActual.email
+            };
+
+            await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+            console.log('Correo de cancelación enviado exitosamente');
+          } catch (emailError) {
+            console.warn('Error al enviar correo de cancelación:', emailError);
+          }
+
+          // Mostrar mensaje de éxito y redirigir
+          await Swal.fire({
+            title: 'Cita cancelada',
+            text: 'Tu cita ha sido cancelada exitosamente',
+            icon: 'success',
+            confirmButtonText: 'Aceptar'
+          });
+
+          // Redirigir a la página principal o cerrar
+          window.location.href = './index.html';
+
+        } catch (error) {
+          console.error('Error al cancelar la cita:', error);
+          mostrarNotificacion('Error al cancelar la cita', 'error');
+          btnCancelar.innerHTML = originalText;
+          btnCancelar.disabled = false;
+        }
+      });
+
+      // 8. FUNCIÓN PARA MOSTRAR NOTIFICACIONES
+      function mostrarNotificacion(mensaje, tipo) {
+        const notificacion = document.createElement('div');
+        notificacion.className = `notificacion ${tipo}`;
+        notificacion.innerHTML = `
+          <i class="bi ${tipo === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle'} me-2"></i>
+          <span>${mensaje}</span>
+        `;
+        document.body.appendChild(notificacion);
+
+        // Eliminar la notificación después de 3 segundos
+        setTimeout(() => {
+          notificacion.remove();
+        }, 3000);
+      }
     });
   </script>
 </body>
