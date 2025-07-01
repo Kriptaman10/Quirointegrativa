@@ -305,73 +305,188 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
+    // Función para calcular la edad
+    function calcularEdad(fechaNacimiento) {
+        const nacimiento = new Date(fechaNacimiento);
+        const hoy = new Date();
+        let edad = hoy.getFullYear() - nacimiento.getFullYear();
+        const mesDiff = hoy.getMonth() - nacimiento.getMonth();
+        if (mesDiff < 0 || (mesDiff === 0 && hoy.getDate() < nacimiento.getDate())) {
+            edad--;
+        }
+        return edad;
+    }
+
+    // Mostrar/ocultar formulario de edición
+    function toggleEditMode(patientId) {
+        const editForm = document.getElementById(`edit-form-${patientId}`);
+        editForm.style.display = editForm.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Cancelar edición
+    function cancelEdit(patientId) {
+        toggleEditMode(patientId);
+    }
+
+    // Guardar cambios del paciente
+    function savePatient(patientId) {
+        const patientCard = document.querySelector(`.patient-card[data-id="${patientId}"]`);
+        const newName = patientCard.querySelector('.edit-name').value;
+        const newEmail = patientCard.querySelector('.edit-email').value;
+        const newPhone = patientCard.querySelector('.edit-phone').value;
+        const newRut = patientCard.querySelector('.edit-rut').value;
+        const newBirthdate = patientCard.querySelector('.edit-birthdate').value;
+        
+        // Aquí iría la lógica para guardar en la base de datos
+        // Por ahora solo actualizamos la interfaz
+        
+        // Actualizar los datos en la tarjeta
+        patientCard.querySelector('.patient-name').textContent = capitalizarNombre(newName);
+        patientCard.querySelector('.patient-email').textContent = newEmail;
+        patientCard.querySelector('.patient-phone').textContent = newPhone;
+        patientCard.querySelector('.patient-rut').textContent = newRut;
+        patientCard.querySelector('.patient-age').textContent = calcularEdad(newBirthdate);
+        
+        // Ocultar el formulario
+        toggleEditMode(patientId);
+    }
+
+    // Eliminar paciente
+    function deletePatient(patientId) {
+        if (confirm('¿Estás seguro que deseas eliminar este paciente?')) {
+            // Aquí iría la lógica para eliminar de la base de datos
+            // Por ahora solo lo quitamos de la interfaz
+            const patientCard = document.querySelector(`.patient-card[data-id="${patientId}"]`);
+            patientCard.remove();
+            
+            // Mostrar mensaje si no hay más pacientes
+            if (document.querySelectorAll('.patient-card').length === 0) {
+                document.querySelector('.patients-list').innerHTML = '<p>No hay pacientes registrados</p>';
+            }
+        }
+    }
+
+    // Función auxiliar para capitalizar nombres
+    function capitalizarNombre(nombre) {
+        return nombre.split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+    }
+
     // Función para renderizar la lista de pacientes
     function renderizarPacientes(pacientes) {
-        const patientsList = document.querySelector('.patients-list');
-        patientsList.innerHTML = pacientes.length
-            ? `<div class="patients-grid">
-                ${pacientes.map((paciente, idx) => {
-                    const iniciales = paciente.nombre
-                        .split(' ')
-                        .map(n => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2);
+    const patientsList = document.querySelector('.patients-list');
+    patientsList.innerHTML = pacientes.length
+        ? `<div class="patients-grid">
+            ${pacientes.map((paciente, idx) => {
+                const iniciales = paciente.nombre
+                    .split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
 
-                    const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
-                    const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
-                    const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
+                const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
+                const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
+                const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
 
-                    return `
-                    <div class="patient-card">
-                        <div class="patient-header">
-                            <div class="patient-avatar">
-                                ${iniciales}
-                            </div>
-                            <div class="patient-info">
-                                <h3>${capitalizarNombre(paciente.nombre)}</h3>
-                                <small>Paciente #${idx + 1}</small>
-                            </div>
+                return `
+                <div class="patient-card" data-id="${paciente.id}">
+                    <div class="patient-header">
+                        <div class="patient-avatar">
+                            ${iniciales}
                         </div>
-                        <div class="patient-contact">
-                            <p>
-                                <i class="fas fa-envelope"></i>
-                                ${paciente.email}
-                            </p>
-                            <p>
-                                <i class="fas fa-phone"></i>
-                                ${paciente.telefono}
-                            </p>
+                        <div class="patient-info">
+                            <h3 class="patient-name">${capitalizarNombre(paciente.nombre)}</h3>
+                            <small>Paciente #${idx + 1}</small>
                         </div>
-                        <div class="patient-stats">
-                            <div class="stat-item">
-                                <div class="stat-value">${citasConfirmadas}</div>
-                                <div class="stat-label">Confirmadas</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${citasPendientes}</div>
-                                <div class="stat-label">Pendientes</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${citasCanceladas}</div>
-                                <div class="stat-label">Canceladas</div>
-                            </div>
+                        <button class="edit-patient-btn" onclick="toggleEditMode('${paciente.id}')">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                    </div>
+                    <div class="patient-contact">
+                        <p>
+                            <i class="fas fa-envelope"></i>
+                            <span class="patient-email">${paciente.email}</span>
+                        </p>
+                        <p>
+                            <i class="fas fa-phone"></i>
+                            <span class="patient-phone">${paciente.telefono}</span>
+                        </p>
+                        <p>
+                            <i class="fas fa-id-card"></i>
+                            <span class="patient-rut">${paciente.rut}</span>
+                        </p>
+                        <p>
+                            <i class="fas fa-calendar-alt"></i>
+                            <span class="patient-age">${calcularEdad(paciente.fechaNacimiento)}</span> años
+                        </p>
+                    </div>
+                    <div class="patient-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">${citasConfirmadas}</div>
+                            <div class="stat-label">Confirmadas</div>
                         </div>
-                        <div class="patient-appointments">
-                            <h4>Últimas citas:</h4>
-                            <ul class="appointment-history">
-                                ${paciente.citas.slice(-3).map(cita => `
-                                    <li>
-                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
+                        <div class="stat-item">
+                            <div class="stat-value">${citasPendientes}</div>
+                            <div class="stat-label">Pendientes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${citasCanceladas}</div>
+                            <div class="stat-label">Canceladas</div>
                         </div>
                     </div>
-                `}).join('')}
-            </div>`
-            : '<p>No hay pacientes registrados</p>';
+                    <div class="patient-appointments">
+                        <h4>Últimas citas:</h4>
+                        <ul class="appointment-history">
+                            ${paciente.citas.slice(-3).map(cita => `
+                                <li>
+                                    <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                                    <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    
+                    <!-- Formulario de edición (oculto inicialmente) -->
+                    <div class="edit-form" id="edit-form-${paciente.id}" style="display: none;">
+                        <div class="form-group">
+                            <label>Nombre:</label>
+                            <input type="text" class="edit-name" value="${paciente.nombre}">
+                        </div>
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" class="edit-email" value="${paciente.email}">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono:</label>
+                            <input type="tel" class="edit-phone" value="${paciente.telefono}">
+                        </div>
+                        <div class="form-group">
+                            <label>RUT:</label>
+                            <input type="text" class="edit-rut" value="${paciente.rut}">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha de Nacimiento:</label>
+                            <input type="date" class="edit-birthdate" value="${paciente.fechaNacimiento}">
+                        </div>
+                        <div class="form-actions">
+                            <button class="save-btn" onclick="savePatient('${paciente.id}')">
+                                <i class="fas fa-save"></i> Guardar
+                            </button>
+                            <button class="cancel-btn" onclick="cancelEdit('${paciente.id}')">
+                                <i class="fas fa-times"></i> Cancelar
+                            </button>
+                            <button class="delete-btn" onclick="deletePatient('${paciente.id}')">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `}).join('')}
+        </div>`
+        : '<p>No hay pacientes registrados</p>';
     }
 
     // Función para inicializar el calendario
