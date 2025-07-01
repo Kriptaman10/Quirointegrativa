@@ -307,72 +307,93 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Función para renderizar la lista de pacientes
     function renderizarPacientes(pacientes) {
-        const patientsList = document.querySelector('.patients-list');
-        patientsList.innerHTML = pacientes.length
-            ? `<div class="patients-grid">
-                ${pacientes.map((paciente, idx) => {
-                    const iniciales = paciente.nombre
-                        .split(' ')
-                        .map(n => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2);
+    const patientsList = document.querySelector('.patients-list');
+    patientsList.innerHTML = pacientes.length
+        ? `<div class="patients-grid">
+            ${pacientes.map((paciente, idx) => {
+                const iniciales = paciente.nombre
+                    .split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
 
-                    const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
-                    const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
-                    const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
+                const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
+                const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
+                const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
 
-                    return `
-                    <div class="patient-card">
-                        <div class="patient-header">
-                            <div class="patient-avatar">
-                                ${iniciales}
-                            </div>
-                            <div class="patient-info">
-                                <h3>${capitalizarNombre(paciente.nombre)}</h3>
-                                <small>Paciente #${idx + 1}</small>
-                            </div>
+                return `
+                <div class="patient-card">
+                    <div class="patient-header">
+                        <div class="patient-avatar">
+                            ${iniciales}
                         </div>
-                        <div class="patient-contact">
-                            <p>
-                                <i class="fas fa-envelope"></i>
-                                ${paciente.email}
-                            </p>
-                            <p>
-                                <i class="fas fa-phone"></i>
-                                ${paciente.telefono}
-                            </p>
-                        </div>
-                        <div class="patient-stats">
-                            <div class="stat-item">
-                                <div class="stat-value">${citasConfirmadas}</div>
-                                <div class="stat-label">Confirmadas</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${citasPendientes}</div>
-                                <div class="stat-label">Pendientes</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${citasCanceladas}</div>
-                                <div class="stat-label">Canceladas</div>
-                            </div>
-                        </div>
-                        <div class="patient-appointments">
-                            <h4>Últimas citas:</h4>
-                            <ul class="appointment-history">
-                                ${paciente.citas.slice(-3).map(cita => `
-                                    <li>
-                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
+                        <div class="patient-info">
+                            <h3>${capitalizarNombre(paciente.nombre)}</h3>
+                            <small>Paciente #${idx + 1}</small>
                         </div>
                     </div>
-                `}).join('')}
-            </div>`
-            : '<p>No hay pacientes registrados</p>';
+                    <div class="patient-contact">
+                        <p>
+                            <i class="fas fa-envelope"></i>
+                            ${paciente.email}
+                        </p>
+                        <p>
+                            <i class="fas fa-phone"></i>
+                            ${paciente.telefono}
+                        </p>
+                        <p>
+                            <i class="fas fa-id-card"></i>
+                            ${paciente.rut}
+                        </p>
+                        <p>
+                            <i class="fas fa-calendar-alt"></i>
+                            ${calcularEdad(paciente.fechaNacimiento)} años
+                        </p>
+                    </div>
+                    <div class="patient-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">${citasConfirmadas}</div>
+                            <div class="stat-label">Confirmadas</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${citasPendientes}</div>
+                            <div class="stat-label">Pendientes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${citasCanceladas}</div>
+                            <div class="stat-label">Canceladas</div>
+                        </div>
+                    </div>
+                    <div class="patient-appointments">
+                        <h4>Últimas citas:</h4>
+                        <ul class="appointment-history">
+                            ${paciente.citas.slice(-3).map(cita => `
+                                <li>
+                                    <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                                    <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `}).join('')}
+        </div>`
+        : '<p>No hay pacientes registrados</p>';
     }
+
+    // Función para calcular la edad a partir de la fecha de nacimiento
+    function calcularEdad(fechaNacimiento) {
+        const nacimiento = new Date(fechaNacimiento);
+        const hoy = new Date();
+        let edad = hoy.getFullYear() - nacimiento.getFullYear();
+        const mesDiff = hoy.getMonth() - nacimiento.getMonth();
+        if (mesDiff < 0 || (mesDiff === 0 && hoy.getDate() < nacimiento.getDate())) {
+            edad--;
+        }
+        return edad;
+    }
+
 
     // Función para inicializar el calendario
     function inicializarCalendario() {
