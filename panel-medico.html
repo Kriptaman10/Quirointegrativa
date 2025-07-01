@@ -95,22 +95,27 @@
                             <div class="grupo-formulario">
                                 <label for="nombre-paciente"><i class="fas fa-user"></i> Nombre:</label>
                                 <input type="text" id="nombre-paciente" required>
+                                <span id="error-nombre" class="mensaje-error"></span>
                             </div>
                             <div class="grupo-formulario">
                                 <label for="telefono-paciente"><i class="fas fa-phone"></i> Teléfono:</label>
                                 <input type="text" id="telefono-paciente" required>
+                                <span id="error-telefono" class="mensaje-error"></span>
                             </div>
                             <div class="grupo-formulario">
                                 <label for="email-paciente"><i class="fas fa-envelope"></i> Email:</label>
                                 <input type="email" id="email-paciente" required>
+                                <span id="error-email" class="mensaje-error"></span>
                             </div>
                             <div class="grupo-formulario">
                                 <label for="rut-paciente"><i class="fas fa-id-card"></i> RUT:</label>
                                 <input type="text" id="rut-paciente" required>
+                                <span id="error-rut" class="mensaje-error"></span>
                             </div>
                             <div class="grupo-formulario">
                                 <label for="fecha-nacimiento"><i class="fas fa-calendar-alt"></i> Fecha de Nacimiento:</label>
                                 <input type="date" id="fecha-nacimiento" required>
+                                <span id="error-fecha-nacimiento" class="mensaje-error"></span>
                             </div>
                             <div class="grupo-formulario">
                                 <label for="fecha-cita"><i class="fas fa-calendar"></i> Fecha de Cita:</label>
@@ -180,6 +185,7 @@
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bmVpbmFqcnl3ZGxqZXZqZ2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0ODA5NDIsImV4cCI6MjA2MTA1Njk0Mn0.ySUivP0cdQ8_c1y7BE7uxEH_F3fKawxtuyi0IiMfLwQ'
         );
     </script>
+    <script src="js/validacion-formulario.js"></script>
     <script src="js/panel-medico.js"></script>
     <!-- Modal para registrar paciente en horario extra -->
 <div id="modalRegistrarPaciente" class="modal-overlay" style="display: none;">

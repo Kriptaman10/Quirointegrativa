@@ -15,27 +15,6 @@ const EMAILJS_CONFIG = {
     publicKey: 'fBdM064XPXrY_vm_n'
 };
 
-//Función para eliminar citas pasadas y cancelarlas
-async function cancelarYEliminarCitasPasadas() {
-    const hoy = new Date().toISOString().split('T')[0];
-    try {
-        // Actualizar estado a 'cancelada' para citas pasadas que no estén ya canceladas
-        await supabase
-            .from('citas')
-            .update({ estado: 'cancelada' })
-            .lt('fecha', hoy)
-            .not('estado', 'eq', 'cancelada');
-
-        // Eliminar citas pasadas (opcional, si quieres borrarlas de la base)
-        await supabase
-            .from('citas')
-            .delete()
-            .lt('fecha', hoy);
-
-    } catch (error) {
-        console.error('Error al cancelar/eliminar citas pasadas:', error);
-    }
-}
 
 // Función para quitar tildes y pasar a minúsculas
 function normalizarTexto(texto) {
@@ -48,9 +27,6 @@ function normalizarTexto(texto) {
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar EmailJS
     emailjs.init(EMAILJS_CONFIG.publicKey);
-
-    //Función para cancelar y eliminar citas pasadas
-    cancelarYEliminarCitasPasadas();
 
     // Verificar si el usuario está logueado
     const medicoLogueado = localStorage.getItem('medicoLogueado')
@@ -422,6 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
             eventMaxStack: 1,
             eventOrder: 'tipo,-start',
             eventOverlap: false,
+            
             events: async function(fetchInfo, successCallback, failureCallback) {
                 try {
                     // Cargar citas existentes
@@ -1326,6 +1303,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         validRange: {
                             start: new Date().toISOString().split('T')[0] // Solo hoy y futuro
+                        },
+
+                        selectAllow: function(selectInfo) {
+                            const day = selectInfo.start.getDay();
+                            return day !== 0 && day !== 6; // Solo permite lunes a viernes
                         },
 
                         events: async function(fetchInfo, successCallback, failureCallback) {
