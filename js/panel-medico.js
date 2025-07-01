@@ -10,32 +10,11 @@ const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig
 
 // Configuración de EmailJS
 const EMAILJS_CONFIG = {
-    serviceId: 'service_b0m35xv',
-    templateId: 'template_1mjm41s',
-    publicKey: 'fBdM064XPXrY_vm_n'
+    serviceId: 'service_rbxn4sx',
+    templateId: 'template_nfulbab',
+    publicKey: 'CPsYTsuclkV6uTXV1'
 };
 
-//Función para eliminar citas pasadas y cancelarlas
-async function cancelarYEliminarCitasPasadas() {
-    const hoy = new Date().toISOString().split('T')[0];
-    try {
-        // Actualizar estado a 'cancelada' para citas pasadas que no estén ya canceladas
-        await supabase
-            .from('citas')
-            .update({ estado: 'cancelada' })
-            .lt('fecha', hoy)
-            .not('estado', 'eq', 'cancelada');
-
-        // Eliminar citas pasadas (opcional, si quieres borrarlas de la base)
-        await supabase
-            .from('citas')
-            .delete()
-            .lt('fecha', hoy);
-
-    } catch (error) {
-        console.error('Error al cancelar/eliminar citas pasadas:', error);
-    }
-}
 
 // Función para quitar tildes y pasar a minúsculas
 function normalizarTexto(texto) {
@@ -48,9 +27,6 @@ function normalizarTexto(texto) {
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar EmailJS
     emailjs.init(EMAILJS_CONFIG.publicKey);
-
-    //Función para cancelar y eliminar citas pasadas
-    cancelarYEliminarCitasPasadas();
 
     // Verificar si el usuario está logueado
     const medicoLogueado = localStorage.getItem('medicoLogueado')
@@ -329,73 +305,188 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
+    // Función para calcular la edad
+    function calcularEdad(fechaNacimiento) {
+        const nacimiento = new Date(fechaNacimiento);
+        const hoy = new Date();
+        let edad = hoy.getFullYear() - nacimiento.getFullYear();
+        const mesDiff = hoy.getMonth() - nacimiento.getMonth();
+        if (mesDiff < 0 || (mesDiff === 0 && hoy.getDate() < nacimiento.getDate())) {
+            edad--;
+        }
+        return edad;
+    }
+
+    // Mostrar/ocultar formulario de edición
+    function toggleEditMode(patientId) {
+        const editForm = document.getElementById(`edit-form-${patientId}`);
+        editForm.style.display = editForm.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Cancelar edición
+    function cancelEdit(patientId) {
+        toggleEditMode(patientId);
+    }
+
+    // Guardar cambios del paciente
+    function savePatient(patientId) {
+        const patientCard = document.querySelector(`.patient-card[data-id="${patientId}"]`);
+        const newName = patientCard.querySelector('.edit-name').value;
+        const newEmail = patientCard.querySelector('.edit-email').value;
+        const newPhone = patientCard.querySelector('.edit-phone').value;
+        const newRut = patientCard.querySelector('.edit-rut').value;
+        const newBirthdate = patientCard.querySelector('.edit-birthdate').value;
+        
+        // Aquí iría la lógica para guardar en la base de datos
+        // Por ahora solo actualizamos la interfaz
+        
+        // Actualizar los datos en la tarjeta
+        patientCard.querySelector('.patient-name').textContent = capitalizarNombre(newName);
+        patientCard.querySelector('.patient-email').textContent = newEmail;
+        patientCard.querySelector('.patient-phone').textContent = newPhone;
+        patientCard.querySelector('.patient-rut').textContent = newRut;
+        patientCard.querySelector('.patient-age').textContent = calcularEdad(newBirthdate);
+        
+        // Ocultar el formulario
+        toggleEditMode(patientId);
+    }
+
+    // Eliminar paciente
+    function deletePatient(patientId) {
+        if (confirm('¿Estás seguro que deseas eliminar este paciente?')) {
+            // Aquí iría la lógica para eliminar de la base de datos
+            // Por ahora solo lo quitamos de la interfaz
+            const patientCard = document.querySelector(`.patient-card[data-id="${patientId}"]`);
+            patientCard.remove();
+            
+            // Mostrar mensaje si no hay más pacientes
+            if (document.querySelectorAll('.patient-card').length === 0) {
+                document.querySelector('.patients-list').innerHTML = '<p>No hay pacientes registrados</p>';
+            }
+        }
+    }
+
+    // Función auxiliar para capitalizar nombres
+    function capitalizarNombre(nombre) {
+        return nombre.split(' ').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+    }
+
     // Función para renderizar la lista de pacientes
     function renderizarPacientes(pacientes) {
-        const patientsList = document.querySelector('.patients-list');
-        patientsList.innerHTML = pacientes.length
-            ? `<div class="patients-grid">
-                ${pacientes.map((paciente, idx) => {
-                    const iniciales = paciente.nombre
-                        .split(' ')
-                        .map(n => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2);
+    const patientsList = document.querySelector('.patients-list');
+    patientsList.innerHTML = pacientes.length
+        ? `<div class="patients-grid">
+            ${pacientes.map((paciente, idx) => {
+                const iniciales = paciente.nombre
+                    .split(' ')
+                    .map(n => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
 
-                    const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
-                    const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
-                    const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
+                const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
+                const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
+                const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
 
-                    return `
-                    <div class="patient-card">
-                        <div class="patient-header">
-                            <div class="patient-avatar">
-                                ${iniciales}
-                            </div>
-                            <div class="patient-info">
-                                <h3>${capitalizarNombre(paciente.nombre)}</h3>
-                                <small>Paciente #${idx + 1}</small>
-                            </div>
+                return `
+                <div class="patient-card" data-id="${paciente.id}">
+                    <div class="patient-header">
+                        <div class="patient-avatar">
+                            ${iniciales}
                         </div>
-                        <div class="patient-contact">
-                            <p>
-                                <i class="fas fa-envelope"></i>
-                                ${paciente.email}
-                            </p>
-                            <p>
-                                <i class="fas fa-phone"></i>
-                                ${paciente.telefono}
-                            </p>
+                        <div class="patient-info">
+                            <h3 class="patient-name">${capitalizarNombre(paciente.nombre)}</h3>
+                            <small>Paciente #${idx + 1}</small>
                         </div>
-                        <div class="patient-stats">
-                            <div class="stat-item">
-                                <div class="stat-value">${citasConfirmadas}</div>
-                                <div class="stat-label">Confirmadas</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${citasPendientes}</div>
-                                <div class="stat-label">Pendientes</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">${citasCanceladas}</div>
-                                <div class="stat-label">Canceladas</div>
-                            </div>
+                        <button class="edit-patient-btn" onclick="toggleEditMode('${paciente.id}')">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                    </div>
+                    <div class="patient-contact">
+                        <p>
+                            <i class="fas fa-envelope"></i>
+                            <span class="patient-email">${paciente.email}</span>
+                        </p>
+                        <p>
+                            <i class="fas fa-phone"></i>
+                            <span class="patient-phone">${paciente.telefono}</span>
+                        </p>
+                        <p>
+                            <i class="fas fa-id-card"></i>
+                            <span class="patient-rut">${paciente.rut}</span>
+                        </p>
+                        <p>
+                            <i class="fas fa-calendar-alt"></i>
+                            <span class="patient-age">${calcularEdad(paciente.fechaNacimiento)}</span> años
+                        </p>
+                    </div>
+                    <div class="patient-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">${citasConfirmadas}</div>
+                            <div class="stat-label">Confirmadas</div>
                         </div>
-                        <div class="patient-appointments">
-                            <h4>Últimas citas:</h4>
-                            <ul class="appointment-history">
-                                ${paciente.citas.slice(-3).map(cita => `
-                                    <li>
-                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
+                        <div class="stat-item">
+                            <div class="stat-value">${citasPendientes}</div>
+                            <div class="stat-label">Pendientes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${citasCanceladas}</div>
+                            <div class="stat-label">Canceladas</div>
                         </div>
                     </div>
-                `}).join('')}
-            </div>`
-            : '<p>No hay pacientes registrados</p>';
+                    <div class="patient-appointments">
+                        <h4>Últimas citas:</h4>
+                        <ul class="appointment-history">
+                            ${paciente.citas.slice(-3).map(cita => `
+                                <li>
+                                    <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                                    <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    
+                    <!-- Formulario de edición (oculto inicialmente) -->
+                    <div class="edit-form" id="edit-form-${paciente.id}" style="display: none;">
+                        <div class="form-group">
+                            <label>Nombre:</label>
+                            <input type="text" class="edit-name" value="${paciente.nombre}">
+                        </div>
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" class="edit-email" value="${paciente.email}">
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono:</label>
+                            <input type="tel" class="edit-phone" value="${paciente.telefono}">
+                        </div>
+                        <div class="form-group">
+                            <label>RUT:</label>
+                            <input type="text" class="edit-rut" value="${paciente.rut}">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha de Nacimiento:</label>
+                            <input type="date" class="edit-birthdate" value="${paciente.fechaNacimiento}">
+                        </div>
+                        <div class="form-actions">
+                            <button class="save-btn" onclick="savePatient('${paciente.id}')">
+                                <i class="fas fa-save"></i> Guardar
+                            </button>
+                            <button class="cancel-btn" onclick="cancelEdit('${paciente.id}')">
+                                <i class="fas fa-times"></i> Cancelar
+                            </button>
+                            <button class="delete-btn" onclick="deletePatient('${paciente.id}')">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `}).join('')}
+        </div>`
+        : '<p>No hay pacientes registrados</p>';
     }
 
     // Función para inicializar el calendario
@@ -422,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
             eventMaxStack: 1,
             eventOrder: 'tipo,-start',
             eventOverlap: false,
+            
             events: async function(fetchInfo, successCallback, failureCallback) {
                 try {
                     // Cargar citas existentes
@@ -989,6 +1081,28 @@ function convertirAFormato24Horas(hora12) {
     return date.toTimeString().slice(0, 8); // HH:MM:SS
 }
 
+/**
+ * Formatea una fecha y hora para mostrarla de forma amigable en el correo.
+ * @param {string} fechaStr - Fecha en formato 'YYYY-MM-DD'
+ * @param {string} horaStr - Hora en formato 'HH:MM'
+ * @returns {string} - Fecha y hora formateada (ej: "martes, 1 de julio de 2025 a las 19:00 hrs")
+ */
+function formatearFechaParaCorreo(fechaStr, horaStr) {
+    // El 'T' es crucial para que el navegador interprete la fecha y hora correctamente
+    const fechaObj = new Date(fechaStr + 'T' + horaStr);
+    const opciones = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false // Formato de 24 horas
+    };
+    // Usamos 'es-CL' para el formato chileno
+    return new Intl.DateTimeFormat('es-CL', opciones).format(fechaObj) + ' hrs';
+}
+
 // Función para mostrar el modal de modificación
 function mostrarModalModificacion(cita) {
     // Eliminar el modal anterior si existe
@@ -1010,15 +1124,11 @@ function mostrarModalModificacion(cita) {
             <div class="modal-body">
                 <form id="form-modificar-cita">
                     <div class="form-group">
-                        <label for="nueva-fecha">
-                            <i class="fas fa-calendar"></i> Fecha:
-                        </label>
+                        <label for="nueva-fecha"><i class="fas fa-calendar"></i> Fecha:</label>
                         <input type="date" id="nueva-fecha" required>
                     </div>
                     <div class="form-group">
-                        <label for="nueva-hora">
-                            <i class="fas fa-clock"></i> Hora:
-                        </label>
+                        <label for="nueva-hora"><i class="fas fa-clock"></i> Hora:</label>
                         <select id="nueva-hora" required>
                             <option value="17:30">17:30</option>
                             <option value="18:00">18:00</option>
@@ -1029,12 +1139,8 @@ function mostrarModalModificacion(cita) {
                         </select>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-guardar">
-                            <i class="fas fa-save"></i> Guardar cambios
-                        </button>
-                        <button type="button" class="btn-cancelar">
-                            <i class="fas fa-times"></i> Cancelar
-                        </button>
+                        <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar cambios</button>
+                        <button type="button" class="btn-cancelar"><i class="fas fa-times"></i> Cancelar</button>
                     </div>
                 </form>
             </div>
@@ -1045,7 +1151,7 @@ function mostrarModalModificacion(cita) {
     // Prellenar el formulario con los datos actuales
     document.getElementById('nueva-fecha').value = cita.fecha;
     const selectHora = document.getElementById('nueva-hora');
-    const horaActual = cita.hora.slice(0,5); // Asegura formato HH:MM
+    const horaActual = cita.hora.slice(0,5);
     const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
     if (horasValidas.includes(horaActual)) {
         selectHora.value = horaActual;
@@ -1056,9 +1162,7 @@ function mostrarModalModificacion(cita) {
 
     // Mostrar el modal
     modal.style.display = 'flex';
-    setTimeout(() => {
-        modal.classList.add('show');
-    }, 10);
+    setTimeout(() => modal.classList.add('show'), 10);
 
     // Cerrar modal
     function cerrar() {
@@ -1069,9 +1173,7 @@ function mostrarModalModificacion(cita) {
     }
     modal.querySelector('.btn-cerrar').onclick = cerrar;
     modal.querySelector('.btn-cancelar').onclick = cerrar;
-    modal.onclick = function(e) {
-        if (e.target === modal) cerrar();
-    };
+    modal.onclick = (e) => { if (e.target === modal) cerrar(); };
     document.addEventListener('keydown', function escListener(e) {
         if (e.key === 'Escape') {
             cerrar();
@@ -1084,6 +1186,12 @@ function mostrarModalModificacion(cita) {
         e.preventDefault();
         const nuevaFecha = document.getElementById('nueva-fecha').value;
         const nuevaHora = document.getElementById('nueva-hora').value;
+        const btnGuardar = modal.querySelector('.btn-guardar');
+
+        // Deshabilitar botón para evitar doble envío
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
         try {
             // Verificar disponibilidad
             const { data: citasExistentes, error: errorConsulta } = await supabase
@@ -1098,15 +1206,48 @@ function mostrarModalModificacion(cita) {
                 mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
                 return;
             }
+            
             // Actualizar la cita
             const { error: errorActualizacion } = await supabase
                 .from('citas')
-                .update({
-                    fecha: nuevaFecha,
-                    hora: nuevaHora
-                })
+                .update({ fecha: nuevaFecha, hora: nuevaHora })
                 .eq('id', cita.id);
             if (errorActualizacion) throw errorActualizacion;
+
+            // =================================================================
+            // INICIO: CÓDIGO NUEVO PARA ENVIAR CORREO CON EMAILJS
+            // =================================================================
+            try {
+                // 1. Preparamos los parámetros para la plantilla de EmailJS
+                //    Asegúrate de que los nombres de las claves (ej: 'nombre') coincidan
+                //    con los placeholders de tu plantilla (ej: {{nombre}})
+                const templateParams = {
+                    nombre: cita.nombre,
+                    email: cita.email, // Se usa para el campo "To Email" en la plantilla
+                    fecha_nueva_formatted: formatearFechaParaCorreo(nuevaFecha, nuevaHora)
+                };
+
+                console.log("Enviando correo de modificación con parámetros:", templateParams);
+
+                // 2. Llamamos a la función de envío de EmailJS
+                await emailjs.send(
+                    EMAILJS_CONFIG.serviceId,
+                    EMAILJS_CONFIG.templateId,
+                    templateParams
+                );
+
+                console.log("Correo de modificación enviado exitosamente.");
+
+            } catch (emailError) {
+                // Si el envío del correo falla, no detenemos el proceso,
+                // solo mostramos una advertencia en la consola para no confundir al usuario.
+                console.warn("El correo de notificación no pudo ser enviado. Error:", emailError);
+                mostrarNotificacion('Cita modificada, pero hubo un problema al enviar el correo.', 'warning');
+            }
+            // =================================================================
+            // FIN: CÓDIGO NUEVO PARA ENVIAR CORREO CON EMAILJS
+            // =================================================================
+
             // Actualizar la UI
             const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
             if (citaElement) {
@@ -1118,14 +1259,22 @@ function mostrarModalModificacion(cita) {
                     <small>${cita.email} | ${cita.telefono}</small>
                 `;
             }
+
             cerrar();
             mostrarNotificacion('Cita modificada exitosamente', 'success');
+
+            // Recargar vistas si es necesario
             if (document.getElementById('dashboard').classList.contains('active')) {
                 cargarDashboard();
             }
+
         } catch (error) {
             console.error('Error al modificar la cita:', error);
             mostrarNotificacion('Error al modificar la cita', 'error');
+        } finally {
+            // Volver a habilitar el botón
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar cambios';
         }
     });
 }
@@ -1326,6 +1475,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         validRange: {
                             start: new Date().toISOString().split('T')[0] // Solo hoy y futuro
+                        },
+
+                        selectAllow: function(selectInfo) {
+                            const day = selectInfo.start.getDay();
+                            return day !== 0 && day !== 6; // Solo permite lunes a viernes
                         },
 
                         events: async function(fetchInfo, successCallback, failureCallback) {

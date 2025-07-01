@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     emailInput.addEventListener('input', validarEmail);
     emailInput.addEventListener('blur', validarEmail);
     rutInput.addEventListener('input', validarRut);
-    rutInput.addEventListener('blur', validarFechaNacimiento);
+    rutInput.addEventListener('blur', validarRut);
     fechaNacimientoInput.addEventListener('input', validarFechaNacimiento);
     fechaNacimientoInput.addEventListener('blur', validarFechaNacimiento);
 
@@ -90,28 +90,78 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validarRut() {
         const rutInput = document.getElementById('rut-paciente');
-        const rut = rutInput.value.trim();
+        let rut = rutInput.value.toUpperCase();
         const errorRut = document.getElementById('error-rut');
         errorRut.textContent = '';
 
-        if (rut === '') {
-            errorRut.textContent = 'Este campo es obligatorio';
+        // Permitir solo números, un guion y un dígito verificador (número o K)
+        rut = rut.replace(/[^0-9K\-]/g, '');
+
+        // Limitar a un solo guion
+        const partes = rut.split('-');
+        if (partes.length > 2) {
+            rut = partes[0] + '-' + partes[1];
+        }
+
+        // Limitar la parte numérica a 8 dígitos
+        if (partes[0].length > 8) {
+            partes[0] = partes[0].slice(0, 8);
+        }
+
+        // Limitar el dígito verificador a 1 carácter (si hay guion)
+        if (partes.length === 2) {
+            partes[1] = partes[1].slice(0, 1);
+            rut = partes[0] + '-' + partes[1];
+        } else {
+            rut = partes[0];
+        }
+
+        // Actualizar el valor del input (sin mover el cursor)
+        const selectionStart = rutInput.selectionStart;
+        rutInput.value = rut;
+        rutInput.setSelectionRange(selectionStart, selectionStart);
+
+        // Validar formato básico
+        const formatoRut = /^[0-9]{7,8}-[0-9K]$/;
+        if (!formatoRut.test(rut)) {
+            errorRut.textContent = 'Formato: 12345678-9 o 12345678-K';
             return false;
         }
 
-        const regex = /^[0-9]{1,8}-[0-9Kk]{1}$/;
-        if (!regex.test(rut)) {
-            errorRut.textContent = 'Ingrese un RUT válido, con formato: 12345678-9';
+        // Separar número y dígito verificador
+        const [numeroRut, digitoVerificador] = rut.split('-');
+        if (!numeroRut || !digitoVerificador) {
+            errorRut.textContent = 'Debe ingresar el dígito verificador';
             return false;
         }
 
-        const rutLength = rut.replace('-', '').length;
-        if (rutLength < 8 || rutLength > 10) {
-            errorRut.textContent = 'El RUT debe contener entre 8 y 10 dígitos';
+        // Calcular dígito verificador
+        const digitoCalculado = calcularDigitoVerificador(numeroRut);
+        if (digitoVerificador !== digitoCalculado) {
+            errorRut.textContent = 'El dígito verificador no es válido';
             return false;
         }
 
         return true;
+    }
+
+    // Función auxiliar para calcular el dígito verificador chileno
+    function calcularDigitoVerificador(numero) {
+        let suma = 0;
+        let multiplicador = 2;
+        
+        // Recorrer el número de derecha a izquierda
+        for (let i = numero.length - 1; i >= 0; i--) {
+            suma += parseInt(numero.charAt(i)) * multiplicador;
+            multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+        }
+        
+        const resto = suma % 11;
+        const dv = 11 - resto;
+        
+        if (dv === 11) return '0';
+        if (dv === 10) return 'K';
+        return dv.toString();
     }
 
     function validarFechaNacimiento() {
@@ -156,4 +206,4 @@ document.addEventListener('DOMContentLoaded', function() {
             toast.style.display = 'none';
         }, 3000);
     }
-}); 
+});
