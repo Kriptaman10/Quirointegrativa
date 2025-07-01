@@ -10,9 +10,9 @@ const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig
 
 // Configuración de EmailJS
 const EMAILJS_CONFIG = {
-    serviceId: 'service_b0m35xv',
-    templateId: 'template_1mjm41s',
-    publicKey: 'fBdM064XPXrY_vm_n'
+    serviceId: 'service_rbxn4sx',
+    templateId: 'template_nfulbab',
+    publicKey: 'CPsYTsuclkV6uTXV1'
 };
 
 
@@ -966,6 +966,28 @@ function convertirAFormato24Horas(hora12) {
     return date.toTimeString().slice(0, 8); // HH:MM:SS
 }
 
+/**
+ * Formatea una fecha y hora para mostrarla de forma amigable en el correo.
+ * @param {string} fechaStr - Fecha en formato 'YYYY-MM-DD'
+ * @param {string} horaStr - Hora en formato 'HH:MM'
+ * @returns {string} - Fecha y hora formateada (ej: "martes, 1 de julio de 2025 a las 19:00 hrs")
+ */
+function formatearFechaParaCorreo(fechaStr, horaStr) {
+    // El 'T' es crucial para que el navegador interprete la fecha y hora correctamente
+    const fechaObj = new Date(fechaStr + 'T' + horaStr);
+    const opciones = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false // Formato de 24 horas
+    };
+    // Usamos 'es-CL' para el formato chileno
+    return new Intl.DateTimeFormat('es-CL', opciones).format(fechaObj) + ' hrs';
+}
+
 // Función para mostrar el modal de modificación
 function mostrarModalModificacion(cita) {
     // Eliminar el modal anterior si existe
@@ -987,15 +1009,11 @@ function mostrarModalModificacion(cita) {
             <div class="modal-body">
                 <form id="form-modificar-cita">
                     <div class="form-group">
-                        <label for="nueva-fecha">
-                            <i class="fas fa-calendar"></i> Fecha:
-                        </label>
+                        <label for="nueva-fecha"><i class="fas fa-calendar"></i> Fecha:</label>
                         <input type="date" id="nueva-fecha" required>
                     </div>
                     <div class="form-group">
-                        <label for="nueva-hora">
-                            <i class="fas fa-clock"></i> Hora:
-                        </label>
+                        <label for="nueva-hora"><i class="fas fa-clock"></i> Hora:</label>
                         <select id="nueva-hora" required>
                             <option value="17:30">17:30</option>
                             <option value="18:00">18:00</option>
@@ -1006,12 +1024,8 @@ function mostrarModalModificacion(cita) {
                         </select>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn-guardar">
-                            <i class="fas fa-save"></i> Guardar cambios
-                        </button>
-                        <button type="button" class="btn-cancelar">
-                            <i class="fas fa-times"></i> Cancelar
-                        </button>
+                        <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar cambios</button>
+                        <button type="button" class="btn-cancelar"><i class="fas fa-times"></i> Cancelar</button>
                     </div>
                 </form>
             </div>
@@ -1022,7 +1036,7 @@ function mostrarModalModificacion(cita) {
     // Prellenar el formulario con los datos actuales
     document.getElementById('nueva-fecha').value = cita.fecha;
     const selectHora = document.getElementById('nueva-hora');
-    const horaActual = cita.hora.slice(0,5); // Asegura formato HH:MM
+    const horaActual = cita.hora.slice(0,5);
     const horasValidas = ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
     if (horasValidas.includes(horaActual)) {
         selectHora.value = horaActual;
@@ -1033,9 +1047,7 @@ function mostrarModalModificacion(cita) {
 
     // Mostrar el modal
     modal.style.display = 'flex';
-    setTimeout(() => {
-        modal.classList.add('show');
-    }, 10);
+    setTimeout(() => modal.classList.add('show'), 10);
 
     // Cerrar modal
     function cerrar() {
@@ -1046,9 +1058,7 @@ function mostrarModalModificacion(cita) {
     }
     modal.querySelector('.btn-cerrar').onclick = cerrar;
     modal.querySelector('.btn-cancelar').onclick = cerrar;
-    modal.onclick = function(e) {
-        if (e.target === modal) cerrar();
-    };
+    modal.onclick = (e) => { if (e.target === modal) cerrar(); };
     document.addEventListener('keydown', function escListener(e) {
         if (e.key === 'Escape') {
             cerrar();
@@ -1061,6 +1071,12 @@ function mostrarModalModificacion(cita) {
         e.preventDefault();
         const nuevaFecha = document.getElementById('nueva-fecha').value;
         const nuevaHora = document.getElementById('nueva-hora').value;
+        const btnGuardar = modal.querySelector('.btn-guardar');
+
+        // Deshabilitar botón para evitar doble envío
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
         try {
             // Verificar disponibilidad
             const { data: citasExistentes, error: errorConsulta } = await supabase
@@ -1075,15 +1091,48 @@ function mostrarModalModificacion(cita) {
                 mostrarNotificacion('Este horario ya está ocupado. Por favor, seleccione otro.', 'error');
                 return;
             }
+            
             // Actualizar la cita
             const { error: errorActualizacion } = await supabase
                 .from('citas')
-                .update({
-                    fecha: nuevaFecha,
-                    hora: nuevaHora
-                })
+                .update({ fecha: nuevaFecha, hora: nuevaHora })
                 .eq('id', cita.id);
             if (errorActualizacion) throw errorActualizacion;
+
+            // =================================================================
+            // INICIO: CÓDIGO NUEVO PARA ENVIAR CORREO CON EMAILJS
+            // =================================================================
+            try {
+                // 1. Preparamos los parámetros para la plantilla de EmailJS
+                //    Asegúrate de que los nombres de las claves (ej: 'nombre') coincidan
+                //    con los placeholders de tu plantilla (ej: {{nombre}})
+                const templateParams = {
+                    nombre: cita.nombre,
+                    email: cita.email, // Se usa para el campo "To Email" en la plantilla
+                    fecha_nueva_formatted: formatearFechaParaCorreo(nuevaFecha, nuevaHora)
+                };
+
+                console.log("Enviando correo de modificación con parámetros:", templateParams);
+
+                // 2. Llamamos a la función de envío de EmailJS
+                await emailjs.send(
+                    EMAILJS_CONFIG.serviceId,
+                    EMAILJS_CONFIG.templateId,
+                    templateParams
+                );
+
+                console.log("Correo de modificación enviado exitosamente.");
+
+            } catch (emailError) {
+                // Si el envío del correo falla, no detenemos el proceso,
+                // solo mostramos una advertencia en la consola para no confundir al usuario.
+                console.warn("El correo de notificación no pudo ser enviado. Error:", emailError);
+                mostrarNotificacion('Cita modificada, pero hubo un problema al enviar el correo.', 'warning');
+            }
+            // =================================================================
+            // FIN: CÓDIGO NUEVO PARA ENVIAR CORREO CON EMAILJS
+            // =================================================================
+
             // Actualizar la UI
             const citaElement = document.querySelector(`.cita[data-id="${cita.id}"]`);
             if (citaElement) {
@@ -1095,14 +1144,22 @@ function mostrarModalModificacion(cita) {
                     <small>${cita.email} | ${cita.telefono}</small>
                 `;
             }
+
             cerrar();
             mostrarNotificacion('Cita modificada exitosamente', 'success');
+
+            // Recargar vistas si es necesario
             if (document.getElementById('dashboard').classList.contains('active')) {
                 cargarDashboard();
             }
+
         } catch (error) {
             console.error('Error al modificar la cita:', error);
             mostrarNotificacion('Error al modificar la cita', 'error');
+        } finally {
+            // Volver a habilitar el botón
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar cambios';
         }
     });
 }

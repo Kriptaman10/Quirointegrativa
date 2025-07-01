@@ -302,10 +302,10 @@
       
       // Configuración de EmailJS
       const EMAILJS_CONFIG = {
-        serviceId: 'service_b0m35xv',
-        templateId: 'template_36ity4i', // Template para cancelación
-        publicKey: 'fBdM064XPXrY_vm_n'
-      };
+    serviceId: 'service_rbxn4sx',
+    templateId: 'template_nfulbab',  // Template para confirmación
+    publicKey: 'CPsYTsuclkV6uTXV1'
+};
       
       if (typeof supabase === 'undefined') {
         showState('error');
@@ -345,6 +345,19 @@
         } else {
           document.getElementById(state + '-state').style.display = 'block';
         }
+      }
+
+      // Función para formatear fecha en español
+      function formatearFecha(fecha, hora) {
+        const fechaObj = new Date(fecha + 'T' + hora);
+        return fechaObj.toLocaleString('es-ES', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit'
+        });
       }
 
       // 2. OBTENER PARÁMETROS DE LA URL
@@ -395,15 +408,7 @@
         telefonoInput.value = citaActual.telefono || '';
         
         // Mostrar los detalles de la cita actual
-        const fechaObj = new Date(citaActual.fecha + 'T' + citaActual.hora);
-        const fechaStr = fechaObj.toLocaleString('es-ES', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric', 
-          hour: '2-digit', 
-          minute: '2-digit'
-        });
+        const fechaStr = formatearFecha(citaActual.fecha, citaActual.hora);
         
         detallesCitaDiv.innerHTML = `
           <div class="d-flex justify-content-between align-items-center">
@@ -462,15 +467,7 @@
             btnConfirmar.disabled = false;
             
             // Mostrar información del nuevo horario seleccionado
-            const fechaObj = new Date(fecha + 'T' + hora);
-            const fechaStr = fechaObj.toLocaleString('es-ES', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric', 
-              hour: '2-digit', 
-              minute: '2-digit'
-            });
+            const fechaStr = formatearFecha(fecha, hora);
             
             infoSeleccionDiv.innerHTML = `
               <i class="bi bi-clock me-2"></i><strong>Nuevo horario seleccionado:</strong><br>
@@ -522,6 +519,10 @@
             return;
           }
 
+          // Guardar datos originales para el correo
+          const fechaOriginal = citaActual.fecha;
+          const horaOriginal = citaActual.hora;
+
           // Actualizar la cita
           const { error: errorActualizacion } = await supabaseClient
             .from('citas')
@@ -533,20 +534,40 @@
 
           if (errorActualizacion) throw errorActualizacion;
 
+          // ENVIAR CORREO DE MODIFICACIÓN
+          try {
+            const templateParams = {
+              nombre: citaActual.nombre,
+              email: citaActual.email,
+              telefono: citaActual.telefono || '',
+              fecha_original: fechaOriginal,
+              hora_original: horaOriginal,
+              fecha_nueva: fecha,
+              hora_nueva: hora,
+              fecha_original_formatted: formatearFecha(fechaOriginal, horaOriginal),
+              fecha_nueva_formatted: formatearFecha(fecha, hora)
+            };
+
+            console.log('Enviando correo con parámetros:', templateParams);
+
+            await emailjs.send(
+              EMAILJS_CONFIG.serviceId, 
+              EMAILJS_CONFIG.templateId, 
+              templateParams
+            );
+            
+            console.log('Correo de modificación enviado exitosamente');
+          } catch (emailError) {
+            console.warn('Error al enviar correo de modificación:', emailError);
+            // No detener el proceso si hay error en el correo
+          }
+
           // Actualizar los datos locales
           citaActual.fecha = fecha;
           citaActual.hora = hora;
 
           // Actualizar la UI
-          const fechaObj = new Date(fecha + 'T' + hora);
-          const fechaStr = fechaObj.toLocaleString('es-ES', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit'
-          });
+          const fechaStr = formatearFecha(fecha, hora);
           
           detallesCitaDiv.innerHTML = `
             <div class="d-flex justify-content-between align-items-center">
@@ -565,7 +586,7 @@
           infoSeleccionDiv.style.display = 'none';
           btnConfirmar.disabled = true;
 
-          mostrarNotificacion('Cita modificada exitosamente', 'success');
+          mostrarNotificacion('Cita modificada exitosamente. Se ha enviado confirmación por correo.', 'success');
 
         } catch (error) {
           console.error('Error al modificar la cita:', error);
@@ -610,10 +631,15 @@
               nombre: citaActual.nombre,
               fecha: citaActual.fecha,
               hora: citaActual.hora,
-              email: citaActual.email
+              email: citaActual.email,
+              fecha_formatted: formatearFecha(citaActual.fecha, citaActual.hora)
             };
 
-            await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+            await emailjs.send(
+              EMAILJS_CONFIG.serviceId, 
+              EMAILJS_CONFIG.templateIdCancelacion, 
+              templateParams
+            );
             console.log('Correo de cancelación enviado exitosamente');
           } catch (emailError) {
             console.warn('Error al enviar correo de cancelación:', emailError);
@@ -648,10 +674,11 @@
         `;
         document.body.appendChild(notificacion);
 
-        // Eliminar la notificación después de 3 segundos
+        // Eliminar la notificación después de 4 segundos para mensajes de éxito
+        const timeout = tipo === 'success' ? 4000 : 3000;
         setTimeout(() => {
           notificacion.remove();
-        }, 3000);
+        }, timeout);
       }
     });
   </script>
