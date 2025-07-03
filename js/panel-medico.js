@@ -266,6 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Función para cargar la lista de pacientes
     async function cargarPacientes() {
         try {
             const { data: citas, error } = await supabase
@@ -289,15 +290,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 pacientes[cita.email].citas.push(cita);
             });
 
-            pacientesGlobal = Object.values(pacientes); // Guarda la lista globalmente
+            const patientsList = document.querySelector('.patients-list');
+            patientsList.innerHTML = Object.values(pacientes).length
+                ? `<div class="patients-grid">
+                    ${Object.values(pacientes).map(paciente => {
+                        const iniciales = paciente.nombre
+                            .split(' ')
+                            .map(n => n[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2);
 
-            renderizarPacientes(pacientesGlobal); // <-- SIEMPRE usa esta función
+                        const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
+                        const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
+                        const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
 
+                        return `
+                        <div class="patient-card">
+                            <div class="patient-header">
+                                <div class="patient-avatar">${iniciales}</div>
+                                <div class="patient-info">
+                                    <h3>${paciente.nombre}</h3>
+                                    <small>${paciente.email}</small>
+                                </div>
+                            </div>
+
+                            <div class="patient-contact">
+                                <p><i class="fas fa-envelope"></i> ${paciente.email}</p>
+                                <p><i class="fas fa-phone"></i> ${paciente.telefono}</p>
+                            </div>
+
+                            <div class="patient-stats">
+                                <div class="stat-item">
+                                    <div class="stat-value">${citasConfirmadas}</div>
+                                    <div class="stat-label">Confirmadas</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${citasPendientes}</div>
+                                    <div class="stat-label">Pendientes</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">${citasCanceladas}</div>
+                                    <div class="stat-label">Canceladas</div>
+                                </div>
+                            </div>
+
+                            <div class="patient-appointments">
+                                <h4>Últimas citas:</h4>
+                                <ul class="appointment-history">
+                                    ${paciente.citas.slice(-3).map(cita => `
+                                        <li>
+                                            <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                                            <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+
+                            <div class="patient-actions" style="margin-top: 1rem; text-align: right;">
+                                <button class="btn-edit-patient" data-email="${paciente.email}">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>`
+                : '<p>No hay pacientes registrados</p>';
         } catch (error) {
             console.error('Error al cargar los pacientes:', error);
         }
     }
-
 
     // Función para calcular la edad
     function calcularEdad(fechaNacimiento) {
@@ -410,9 +473,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h3 class="patient-name">${capitalizarNombre(paciente.nombre)}</h3>
                             <small>Paciente #${idx + 1}</small>
                         </div>
-                        <button class="edit-patient-btn" onclick="toggleEditMode('${paciente.id}')">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
+                        <div class="patient-actions">
+                            <button class="btn-edit-patient" data-email="${paciente.email}">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                        </div>
                     </div>
                     <div class="patient-contact">
                         <p>
@@ -1667,4 +1732,90 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+
+function cerrarModalEditarPaciente() {
+    document.getElementById('modalEditarPaciente').style.display = 'none';
+}
+
+function abrirModalEditarPaciente(paciente) {
+    document.getElementById('editarNombre').value = paciente.nombre;
+    document.getElementById('editarEmail').value = paciente.email;
+    document.getElementById('editarTelefono').value = paciente.telefono;
+    document.getElementById('modalEditarPaciente').style.display = 'flex';
+}
+
+// Delegación de eventos para el botón Editar
+document.body.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('.btn-edit-patient');
+    if (!editBtn) return;
+
+    const email = editBtn.dataset.email;
+    const { data, error } = await supabase
+        .from('citas')
+        .select('*')
+        .eq('email', email)
+        .order('fecha', { ascending: false })
+        .limit(1);
+
+    if (error || !data.length) {
+        alert('Error al cargar datos del paciente');
+        return;
+    }
+
+    abrirModalEditarPaciente(data[0]);
+});
+
+// Guardar cambios del paciente
+document.getElementById('formEditarPaciente').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const nombre = document.getElementById('editarNombre').value.trim();
+    const email = document.getElementById('editarEmail').value.trim();
+    const telefono = document.getElementById('editarTelefono').value.trim();
+
+    const btnGuardar = e.target.querySelector('.btn-confirmar');
+    btnGuardar.disabled = true;
+    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+    if (!nombre || !telefono) {
+        alert('Todos los campos son obligatorios');
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+        return;
+    }
+
+    try {
+        const { error } = await supabase
+            .from('citas')
+            .update({ nombre, telefono })
+            .eq('email', email);
+
+        if (error) {
+            alert('Error al guardar los cambios en la base de datos');
+            console.error(error);
+        } else {
+            cerrarModalEditarPaciente();
+            mostrarNotificacion('Paciente actualizado correctamente', 'success');
+
+            // Recargar pacientes
+            cargarPacientes();
+
+            // Si el dashboard está activo, actualizarlo también
+            if (document.getElementById('dashboard').classList.contains('active')) {
+                cargarDashboard();
+            }
+
+            // Si las citas están activas, recargarlas también
+            if (document.getElementById('appointments').classList.contains('active')) {
+                cargarCitas();
+            }
+        }
+    } catch (err) {
+        console.error('Error inesperado:', err);
+        alert('Error inesperado al guardar cambios.');
+    }
+
+    btnGuardar.disabled = false;
+    btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
 });

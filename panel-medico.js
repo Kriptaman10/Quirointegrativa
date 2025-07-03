@@ -243,3 +243,50 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 }); 
+
+function cerrarModalEditarPaciente() {
+    document.getElementById('modalEditarPaciente').style.display = 'none';
+}
+
+function abrirModalEditarPaciente(paciente) {
+    document.getElementById('editarNombre').value = paciente.nombre;
+    document.getElementById('editarEmail').value = paciente.email;
+    document.getElementById('editarTelefono').value = paciente.telefono;
+    document.getElementById('modalEditarPaciente').style.display = 'flex';
+}
+
+document.body.addEventListener('click', async (e) => {
+    if (e.target.closest('.btn-edit-patient')) {
+        const email = e.target.closest('.btn-edit-patient').dataset.email;
+        const { data, error } = await supabase
+            .from('citas')
+            .select('*')
+            .eq('email', email)
+            .order('fecha', { ascending: false })
+            .limit(1);
+        if (error || !data.length) return alert('Error al cargar datos del paciente');
+
+        abrirModalEditarPaciente(data[0]);
+    }
+});
+
+document.getElementById('formEditarPaciente').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('editarNombre').value;
+    const email = document.getElementById('editarEmail').value;
+    const telefono = document.getElementById('editarTelefono').value;
+
+    const { error } = await supabase
+        .from('citas')
+        .update({ nombre, telefono })
+        .eq('email', email);
+
+    if (error) {
+        alert('Error al guardar cambios');
+        return;
+    }
+
+    cerrarModalEditarPaciente();
+    cargarPacientes();
+    mostrarNotificacion('Paciente actualizado correctamente', 'success');
+});
