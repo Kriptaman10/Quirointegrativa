@@ -300,12 +300,19 @@
       const SUPABASE_URL = 'https://ivneinajrywdljevjgjx.supabase.co';
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bmVpbmFqcnl3ZGxqZXZqZ2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0ODA5NDIsImV4cCI6MjA2MTA1Njk0Mn0.ySUivP0cdQ8_c1y7BE7uxEH_F3fKawxtuyi0IiMfLwQ';
       
-      // Configuración de EmailJS
-      const EMAILJS_CONFIG = {
-    serviceId: 'service_rbxn4sx',
-    templateId: 'template_nfulbab',  // Template para confirmación
-    publicKey: 'CPsYTsuclkV6uTXV1'
-};
+      // Configuración de EmailJS para modificación de citas
+      const EMAILJS_CONFIG_MODIFICACION = {
+        serviceId: 'service_rbxn4sx',
+        templateId: 'template_nfulbab',  // Template para modificación
+        publicKey: 'CPsYTsuclkV6uTXV1'
+      };
+
+      // Configuración de EmailJS para cancelación de citas
+      const EMAILJS_CONFIG_CANCELACION = {
+        serviceId: 'service_b0m35xv',
+        templateId: 'template_36ity4i',  // Template para cancelación
+        publicKey: 'fBdM064XPXrY_vm_n'
+      };
       
       if (typeof supabase === 'undefined') {
         showState('error');
@@ -316,7 +323,7 @@
       const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       
       // Inicializar EmailJS
-      emailjs.init(EMAILJS_CONFIG.publicKey);
+      emailjs.init(EMAILJS_CONFIG_MODIFICACION.publicKey);
 
       const loadingState = document.getElementById('loading-state');
       const contentState = document.getElementById('content-state');
@@ -551,8 +558,8 @@
             console.log('Enviando correo con parámetros:', templateParams);
 
             await emailjs.send(
-              EMAILJS_CONFIG.serviceId, 
-              EMAILJS_CONFIG.templateId, 
+              EMAILJS_CONFIG_MODIFICACION.serviceId, 
+              EMAILJS_CONFIG_MODIFICACION.templateId, 
               templateParams
             );
             
@@ -635,9 +642,12 @@
               fecha_formatted: formatearFecha(citaActual.fecha, citaActual.hora)
             };
 
+            // Inicializa EmailJS con la clave pública de cancelación
+            emailjs.init(EMAILJS_CONFIG_CANCELACION.publicKey);
+
             await emailjs.send(
-              EMAILJS_CONFIG.serviceId, 
-              EMAILJS_CONFIG.templateIdCancelacion, 
+              EMAILJS_CONFIG_CANCELACION.serviceId, 
+              EMAILJS_CONFIG_CANCELACION.templateId, 
               templateParams
             );
             console.log('Correo de cancelación enviado exitosamente');
