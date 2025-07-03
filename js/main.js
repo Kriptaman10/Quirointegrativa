@@ -186,41 +186,74 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        // Obtén los valores del formulario
+        // Deshabilitar botón para evitar doble envío
+        submitButton.disabled = true;
+
+        // Obtén todos los valores del formulario
         const nombre = form.querySelector('[name="nombre"]').value;
         const email = form.querySelector('[name="email"]').value;
         const telefono = form.querySelector('[name="telefono"]').value;
-        const fecha = dateInput.value;
-        const hora = timeInput.value;
+        const rut = form.querySelector('[name="rut"]').value;
+        const fecha_nacimiento = form.querySelector('[name="fecha_nacimiento"]').value;
+        const fecha_cita = dateInput.value;
+        const hora_cita = timeInput.value;
 
-        // Puedes agregar validaciones aquí si lo deseas
+        // Aquí puedes integrar las validaciones de validacion-formulario.js si es necesario
 
-        // Envía los datos a Supabase
-        const { data, error } = await supabase
-            .from('citas')
-            .insert([
-                {
-                    nombre,
-                    email,
-                    telefono,
-                    fecha,
-                    hora,
-                    estado: 'pendiente' // o el estado que corresponda
-                }
-            ]);
+        try {
+            // 1. Buscar o crear el paciente (Upsert)
+            // .upsert() intenta actualizar si encuentra una coincidencia (basado en el 'rut'), 
+            // o inserta un nuevo registro si no la encuentra.
+            const { data: pacienteData, error: pacienteError } = await supabase
+                .from('pacientes')
+                .upsert({
+                    rut: rut,
+                    nombre: nombre,
+                    email: email,
+                    telefono: telefono,
+                    fecha_nacimiento: fecha_nacimiento
+                }, {
+                    onConflict: 'rut' // Usa la columna 'rut' para detectar conflictos
+                })
+                .select() // Devuelve el registro insertado o actualizado
+                .single(); // Esperamos un solo resultado
 
-        if (error) {
-            alert('Error al agendar la cita: ' + error.message);
-        } else {
+            if (pacienteError) {
+                throw pacienteError;
+            }
+
+            // 2. Crear la cita vinculada al paciente
+            const { error: citaError } = await supabase
+                .from('citas')
+                .insert([
+                    {
+                        paciente_id: pacienteData.id, // Asumiendo que tienes una columna 'paciente_id'
+                        nombre: nombre, // Aún guardamos el nombre para mostrarlo fácil en el calendario
+                        email: email,
+                        telefono: telefono,
+                        fecha: fecha_cita,
+                        hora: hora_cita,
+                        estado: 'pendiente'
+                    }
+                ]);
+
+            if (citaError) {
+                throw citaError;
+            }
+
             alert('¡Cita agendada con éxito!');
-            // Opcional: recargar eventos del calendario
             calendar.refetchEvents();
-            // Limpiar formulario y selección
             form.reset();
             selectedSlotEl.style.display = 'none';
             dateInput.value = '';
             timeInput.value = '';
-            submitButton.disabled = true;
+
+        } catch (error) {
+            console.error('Error al agendar la cita:', error);
+            alert('Error al agendar la cita: ' + error.message);
+        } finally {
+            // Reactivar el botón al final
+            submitButton.disabled = false;
         }
     });
 

@@ -103,22 +103,16 @@
                         </div>
                         <!-- rut y fecha añadidos dentro del grid formulario para más orden -->
                         <div class="grupo-formulario">
-                            <label for="rut-paciente">
-                                <i class="fas fa-id-card"></i> RUT
-                            </label>
-                            <input type="text" id="rut-paciente" name="rut" required 
-                                pattern="[0-9]{1,8}-[0-9Kk]{1}" 
-                                title="Formato: 12345678-9 o 12345678-K">
-                            <div class="mensaje-error" id="error-rut"></div>
+                            <label for="rut-paciente"><i class="fas fa-id-card"></i> RUT:</label>
+                            <input type="text" id="rut-paciente" name="rut" required placeholder="12345678-9">
+                            <span id="error-rut" class="mensaje-error"></span>
                         </div>
 
                         <div class="grupo-formulario">
-                            <label for="fecha-nacimiento">
-                                <i class="fas fa-calendar-alt"></i> Fecha de Nacimiento
-                            </label>
+                            <label for="fecha-nacimiento"><i class="fas fa-calendar-alt"></i> Fecha de Nacimiento:</label>
                             <input type="date" id="fecha-nacimiento" name="fecha_nacimiento" required>
-                            <div class="mensaje-error" id="error-fecha-nacimiento"></div>
-                        </div>                        
+                            <span id="error-fecha-nacimiento" class="mensaje-error"></span>
+                        </div>                         
                     </div>
                     
                     <!-- Campos ocultos para fecha y hora -->

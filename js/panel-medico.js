@@ -298,19 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Agregar evento de búsqueda
-    const searchInput = document.getElementById('searchPaciente');
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const query = normalizarTexto(this.value);
-            const filtrados = pacientesGlobal.filter(paciente =>
-                normalizarTexto(paciente.nombre).includes(query) ||
-                normalizarTexto(paciente.email).includes(query)
-            );
-            renderizarPacientes(filtrados);
-        });
-    }
-
 
     // Función para calcular la edad
     function calcularEdad(fechaNacimiento) {
@@ -380,6 +367,21 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join(' ');
     }
 
+    
+    // (Eliminado: declaración duplicada de searchInput y su event listener)
+
+    function calcularEdad(fechaNacimiento) {
+        if (!fechaNacimiento) return '?'; // Añadido para evitar errores si la fecha es nula
+        const nacimiento = new Date(fechaNacimiento);
+        const hoy = new Date();
+        let edad = hoy.getFullYear() - nacimiento.getFullYear();
+        const mesDiff = hoy.getMonth() - nacimiento.getMonth();
+        if (mesDiff < 0 || (mesDiff === 0 && hoy.getDate() < nacimiento.getDate())) {
+            edad--;
+        }
+        return isNaN(edad) ? '?' : edad; // Evita mostrar "NaN"
+    }
+
     // Función para renderizar la lista de pacientes
     function renderizarPacientes(pacientes) {
     const patientsList = document.querySelector('.patients-list');
@@ -393,9 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     .toUpperCase()
                     .slice(0, 2);
 
-                const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
-                const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
-                const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
+                // Contar citas por estado - verificar si tiene citas
+                const citasConfirmadas = paciente.citas ? paciente.citas.filter(c => c.estado === 'confirmada').length : 0;
+                const citasPendientes = paciente.citas ? paciente.citas.filter(c => c.estado === 'pendiente').length : 0;
+                const citasCanceladas = paciente.citas ? paciente.citas.filter(c => c.estado === 'cancelada').length : 0;
 
                 return `
                 <div class="patient-card" data-id="${paciente.id}">
@@ -418,15 +421,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         </p>
                         <p>
                             <i class="fas fa-phone"></i>
-                            <span class="patient-phone">${paciente.telefono}</span>
+                            <span class="patient-phone">${paciente.telefono || 'No especificado'}</span>
                         </p>
                         <p>
                             <i class="fas fa-id-card"></i>
-                            <span class="patient-rut">${paciente.rut}</span>
+                            <span class="patient-rut">${paciente.rut || 'No especificado'}</span>
                         </p>
                         <p>
                             <i class="fas fa-calendar-alt"></i>
-                            <span class="patient-age">${calcularEdad(paciente.fechaNacimiento)}</span> años
+                            ${paciente.fecha_nacimiento ? calcularEdad(paciente.fecha_nacimiento) + ' años' : 'Edad no especificada'}
                         </p>
                     </div>
                     <div class="patient-stats">
@@ -446,12 +449,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="patient-appointments">
                         <h4>Últimas citas:</h4>
                         <ul class="appointment-history">
-                            ${paciente.citas.slice(-3).map(cita => `
-                                <li>
-                                    <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                    <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                </li>
-                            `).join('')}
+                            ${paciente.citas && paciente.citas.length > 0 ? 
+                                paciente.citas.slice(-3).map(cita => `
+                                    <li>
+                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                                    </li>
+                                `).join('') : 
+                                '<li>No hay citas registradas</li>'
+                            }
                         </ul>
                     </div>
                     
@@ -467,15 +473,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="form-group">
                             <label>Teléfono:</label>
-                            <input type="tel" class="edit-phone" value="${paciente.telefono}">
+                            <input type="tel" class="edit-phone" value="${paciente.telefono || ''}">
                         </div>
                         <div class="form-group">
                             <label>RUT:</label>
-                            <input type="text" class="edit-rut" value="${paciente.rut}">
+                            <input type="text" class="edit-rut" value="${paciente.rut || ''}">
                         </div>
                         <div class="form-group">
                             <label>Fecha de Nacimiento:</label>
-                            <input type="date" class="edit-birthdate" value="${paciente.fechaNacimiento}">
+                            <input type="date" class="edit-birthdate" value="${paciente.fecha_nacimiento || ''}">
                         </div>
                         <div class="form-actions">
                             <button class="save-btn" onclick="savePatient('${paciente.id}')">
@@ -676,37 +682,47 @@ document.addEventListener('DOMContentLoaded', () => {
         calendar.render();
     }
 
-    // Función para cargar la lista de pacientes
     async function cargarPacientes() {
         try {
-            const { data: citas, error } = await supabase
-                .from('citas')
-                .select('*')
-                .order('nombre', { ascending: true })
+            // 1. Consulta la tabla 'pacientes' y trae sus 'citas' relacionadas
+            const { data: pacientesConCitas, error } = await supabase
+                .from('pacientes')
+                .select(`
+                    *,
+                    citas ( * )
+                `)
+                .order('nombre', { ascending: true });
 
-            if (error) throw error
+            if (error) throw error;
 
-            // Agrupar citas por paciente
-            const pacientes = {};
-            citas?.forEach(cita => {
-                const email = cita.email.trim().toLowerCase();
-                if (!pacientes[email]) {
-                    pacientes[email] = {
-                        nombre: cita.nombre,
-                        email: cita.email,
-                        telefono: cita.telefono,
-                        citas: []
-                    }
-                }
-                pacientes[email].citas.push(cita);
-            });
-            pacientesGlobal = Object.values(pacientes);
-            renderizarPacientes(pacientesGlobal);
+            pacientesGlobal = pacientesConCitas || []; // Guarda la lista globalmente
+
+            renderizarPacientes(pacientesGlobal); // Llama a la función de renderizado
 
         } catch (error) {
-            console.error('Error al cargar los pacientes:', error)
+            console.error('Error al cargar los pacientes:', error);
+            // Asegúrate de que la lista se vacíe en caso de error para no mostrar datos viejos
+            const patientsList = document.querySelector('.patients-list');
+            if(patientsList) patientsList.innerHTML = '<p class="error-message">No se pudieron cargar los pacientes.</p>';
         }
     }
+
+    // Agregar evento de búsqueda (mejorado para incluir RUT)
+    const searchInput = document.getElementById('searchPaciente');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = normalizarTexto(this.value);
+            const filtrados = pacientesGlobal.filter(paciente =>
+                normalizarTexto(paciente.nombre).includes(query) ||
+                normalizarTexto(paciente.email).includes(query) ||
+                (paciente.rut && normalizarTexto(paciente.rut).includes(query)) ||
+                (paciente.telefono && paciente.telefono.includes(query)) // Búsqueda también por teléfono
+            );
+            renderizarPacientes(filtrados);
+        });
+    }
+
+    // Esta función duplicada se elimina porque ya existe una versión correcta arriba
 
     // Función para cargar las valoraciones
     async function cargarValoraciones() {
@@ -1546,49 +1562,72 @@ document.addEventListener('DOMContentLoaded', function() {
             const nombre = document.getElementById('nombre-paciente').value.trim();
             const email = document.getElementById('email-paciente').value.trim();
             const telefono = document.getElementById('telefono-paciente').value.trim();
+            const rut = document.getElementById('rut-paciente').value.trim();
+            const fecha_nacimiento = document.getElementById('fecha-nacimiento-paciente').value;
             const fecha = document.getElementById('fecha-cita').value;
             let hora = document.getElementById('hora-cita').value;
             if (hora.length === 5) hora = hora + ':00';
 
-            if (!nombre || !email || !telefono || !fecha || !hora) {
-                mostrarNotificacion('Completa todos los campos', 'error');
+            if (!nombre || !email || !telefono || !rut || !fecha_nacimiento || !fecha || !hora) {
+                mostrarNotificacion('Completa todos los campos del paciente y la cita', 'error');
                 return;
             }
 
-            const { data: citasExistentes, error: errorVerif } = await supabase
-                .from('citas')
-                .select('id')
-                .eq('fecha', fecha)
-                .eq('hora', hora)
-                .in('estado', ['pendiente', 'confirmada']);
-            if (errorVerif) {
-                mostrarNotificacion('Error al verificar disponibilidad', 'error');
-                return;
-            }
-            if (citasExistentes && citasExistentes.length > 0) {
-                mostrarNotificacion('Ya existe una cita en ese horario', 'error');
-                return;
-            }
+            try {
+                let pacienteId;
 
-            const { error } = await supabase
-                .from('citas')
-                .insert([{
-                    nombre,
-                    email,
-                    telefono,
-                    fecha,
-                    hora,
-                    estado: 'pendiente'
-                }]);
-            if (error) {
-                mostrarNotificacion('Error al guardar la cita', 'error');
-                return;
-            }
+                // 1. Buscar si el paciente ya existe por su RUT
+                const { data: pacienteExistente, error: errorBusqueda } = await supabase
+                    .from('pacientes')
+                    .select('id')
+                    .eq('rut', rut)
+                    .single(); // .single() devuelve un objeto o null, es perfecto para esto
 
-            mostrarNotificacion('Cita agendada correctamente', 'success');
-            if (typeof cargarCitas === 'function') cargarCitas(); // <-- recarga la lista de citas
-            formularioCita.reset();
-            if (calendarForm) calendarForm.refetchEvents();
+                // Ignoramos el error 'PGRST116' que significa "no se encontró la fila", es el caso esperado si el paciente es nuevo.
+                if (errorBusqueda && errorBusqueda.code !== 'PGRST116') {
+                    throw errorBusqueda;
+                }
+
+                if (pacienteExistente) {
+                    // 2a. Si el paciente existe, usamos su ID
+                    pacienteId = pacienteExistente.id;
+                } else {
+                    // 2b. Si no existe, lo creamos en la tabla 'pacientes'
+                    const { data: nuevoPaciente, error: errorCreacion } = await supabase
+                        .from('pacientes')
+                        .insert({ rut, nombre, email, telefono, fecha_nacimiento })
+                        .select('id')
+                        .single();
+
+                    if (errorCreacion) throw errorCreacion;
+                    pacienteId = nuevoPaciente.id;
+                }
+
+                // 3. Crear la cita en la tabla 'citas' usando el ID del paciente
+                const { error: errorCita } = await supabase
+                    .from('citas')
+                    .insert([{
+                        paciente_id: pacienteId, // <-- Usamos el ID obtenido
+                        nombre, // Aún guardamos estos datos para mostrarlos fácilmente
+                        email,
+                        telefono,
+                        fecha,
+                        hora,
+                        estado: 'pendiente'
+                    }]);
+
+                if (errorCita) throw errorCita;
+
+                mostrarNotificacion('Cita agendada correctamente', 'success');
+                if (typeof cargarCitas === 'function') cargarCitas();
+                if (typeof cargarPacientes === 'function') cargarPacientes();
+                formularioCita.reset();
+                if (calendarForm) calendarForm.refetchEvents();
+
+            } catch (error) {
+                console.error('Error al agendar la cita:', error);
+                mostrarNotificacion('Error al guardar la cita: ' + error.message, 'error');
+            }
         });
     }
 
