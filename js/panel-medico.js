@@ -8,13 +8,19 @@ const supabaseConfig = {
 }
 const supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.key);
 
-// Configuración de EmailJS
-const EMAILJS_CONFIG = {
+// Configuración de EmailJS para confirmación de citas
+const EMAILJS_CONFIG_CONFIRMACION = {
+    serviceId: 'service_b0m35xv',
+    templateId: 'template_1mjm41s',
+    publicKey: 'fBdM064XPXrY_vm_n'
+};
+
+// Configuración de EmailJS para modificación de citas
+const EMAILJS_CONFIG_MODIFICACION = {
     serviceId: 'service_rbxn4sx',
     templateId: 'template_nfulbab',
     publicKey: 'CPsYTsuclkV6uTXV1'
 };
-
 
 // Función para quitar tildes y pasar a minúsculas
 function normalizarTexto(texto) {
@@ -26,7 +32,7 @@ function normalizarTexto(texto) {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Inicializar EmailJS
-    emailjs.init(EMAILJS_CONFIG.publicKey);
+    emailjs.init(EMAILJS_CONFIG_CONFIRMACION.publicKey);
 
     // Verificar si el usuario está logueado
     const medicoLogueado = localStorage.getItem('medicoLogueado')
@@ -986,7 +992,7 @@ async function confirmarCita(citaId, nombrePaciente, emailPaciente, fechaCita, h
             
             console.log('Enviando correo con parámetros:', templateParams);
             
-            await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+            await emailjs.send(EMAILJS_CONFIG_CONFIRMACION.serviceId, EMAILJS_CONFIG_CONFIRMACION.templateId, templateParams);
 
         } catch (emailError) {
             console.error('Error al enviar el correo de confirmación:', emailError);
@@ -1231,8 +1237,8 @@ function mostrarModalModificacion(cita) {
 
                 // 2. Llamamos a la función de envío de EmailJS
                 await emailjs.send(
-                    EMAILJS_CONFIG.serviceId,
-                    EMAILJS_CONFIG.templateId,
+                    EMAILJS_CONFIG_MODIFICACION.serviceId,
+                    EMAILJS_CONFIG_MODIFICACION.templateId,
                     templateParams
                 );
 
