@@ -165,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function validarFechaNacimiento() {
-        const fechaNacimientoInput = document.getElementById('fecha-nacimiento');
         const fechaNacimiento = fechaNacimientoInput.value.trim();
         const errorFechaNacimiento = document.getElementById('error-fecha-nacimiento');
         errorFechaNacimiento.textContent = '';
@@ -175,11 +174,20 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
+        // Definir límites de fecha
+        const fechaMinima = new Date('1925-01-01T00:00:00');
         const hoy = new Date();
-        const fechaSeleccionada = new Date(fechaNacimiento);
+        const fechaSeleccionada = new Date(fechaNacimiento + 'T00:00:00'); // Evita problemas de zona horaria
 
+        // Validar que no sea una fecha futura
         if (fechaSeleccionada > hoy) {
-            errorFechaNacimiento.textContent = 'La fecha seleccionada no es válida';
+            errorFechaNacimiento.textContent = 'La fecha de nacimiento no puede ser en el futuro.';
+            return false;
+        }
+
+        // Validar que no sea anterior a 1925
+        if (fechaSeleccionada < fechaMinima) {
+            errorFechaNacimiento.textContent = 'El año de nacimiento no debe ser anterior a 1925.';
             return false;
         }
 
