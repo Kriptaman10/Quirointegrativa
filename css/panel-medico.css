@@ -1145,3 +1145,136 @@ body.modal-open {
         justify-content: center;
     }
 }
+.btn-edit-patient {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.3s ease;
+}
+
+.btn-edit-patient:hover {
+    background-color: #357abd;
+    transform: translateY(-1px);
+}
+#modalEditarPaciente .modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    position: relative;
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+#modalEditarPaciente .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--medium-gray);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#modalEditarPaciente .modal-header h3 {
+    font-size: 1.4rem;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+#modalEditarPaciente .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #888;
+    cursor: pointer;
+    padding: 0.3rem;
+    border-radius: 50%;
+    transition: background 0.2s ease;
+}
+
+#modalEditarPaciente .modal-close:hover {
+    background-color: var(--light-gray);
+    color: var(--text-color);
+}
+
+#modalEditarPaciente .form-group {
+    margin-bottom: 1.5rem;
+}
+
+#modalEditarPaciente .form-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    color: var(--dark-gray);
+    margin-bottom: 0.5rem;
+}
+
+#modalEditarPaciente .form-group input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--medium-gray);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border 0.3s ease, box-shadow 0.3s ease;
+}
+
+#modalEditarPaciente .form-group input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+    outline: none;
+}
+
+#modalEditarPaciente .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+#modalEditarPaciente .btn-confirmar {
+    background-color: var(--success);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+#modalEditarPaciente .btn-confirmar:hover {
+    background-color: #218838;
+}
+
+#modalEditarPaciente .btn-cancelar {
+    background: var(--medium-gray);
+    color: #333;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+#modalEditarPaciente .btn-cancelar:hover {
+    background-color: #d6d8db;
+}
