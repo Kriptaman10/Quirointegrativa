@@ -448,17 +448,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         </p>
                     </div>
                     <div class="patient-stats">
-                        <div class="stat-item">
-                            <div class="stat-value">${citasConfirmadas}</div>
-                            <div class="stat-label">Confirmadas</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${citasPendientes}</div>
-                            <div class="stat-label">Pendientes</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${citasCanceladas}</div>
-                            <div class="stat-label">Canceladas</div>
+                        <div style="display:flex; justify-content:center; align-items:stretch; gap:0; width:100%; max-width:100%; box-sizing:border-box; padding:0px 0 4px 0; background:#f8f9fa; border-radius:0; margin:0;">
+                            <div class="stat-item" style="flex:1.1; min-width:0; text-align:center; padding:0 5px;">
+                                <div class="stat-value" style="font-size:1rem; font-weight:600; color:#222;">${citasConfirmadas}</div>
+                                <div class="stat-label" style="font-size:0.7rem; color:#555; white-space:normal; word-break:break-word;">CONFIRMADAS</div>
+                            </div>
+                            <div class="stat-item" style="flex:1; min-width:0; text-align:center; padding:0 2px;">
+                                <div class="stat-value" style="font-size:1rem; font-weight:600; color:#222;">${citasPendientes}</div>
+                                <div class="stat-label" style="font-size:0.7rem; color:#555; white-space:normal; word-break:break-word;">PENDIENTES</div>
+                            </div>
+                            <div class="stat-item" style="flex:1; min-width:0; text-align:center; padding:0 2px;">
+                                <div class="stat-value" style="font-size:1rem; font-weight:600; color:#222;">${citasCanceladas}</div>
+                                <div class="stat-label" style="font-size:0.7rem; color:#555; white-space:normal; word-break:break-word;">CANCELADAS</div>
+                            </div>
                         </div>
                     </div>
                     <div class="patient-appointments">
