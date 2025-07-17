@@ -224,9 +224,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Función para cargar la lista de citas
     async function cargarCitas() {
         try {
+            // Obtener la fecha y hora actual en formato compatible con la base de datos
+            const now = new Date();
+            const today = now.toISOString().slice(0, 10); // yyyy-mm-dd
+            const currentTime = now.toTimeString().slice(0, 5); // HH:MM
+
+            // Traer solo citas de hoy en adelante, y si es hoy, solo las que no han pasado
             const { data: citas, error } = await supabase
                 .from('citas')
                 .select('*')
+                .or(`fecha.gt.${today},and(fecha.eq.${today},hora.gte.${currentTime})`)
                 .order('fecha', { ascending: true })
                 .order('hora', { ascending: true })
 
@@ -266,101 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Función para cargar la lista de pacientes
-    async function cargarPacientes() {
-        try {
-            const { data: citas, error } = await supabase
-                .from('citas')
-                .select('*')
-                .order('nombre', { ascending: true });
-
-            if (error) throw error;
-
-            // Agrupar citas por paciente
-            const pacientes = {};
-            citas?.forEach(cita => {
-                if (!pacientes[cita.email]) {
-                    pacientes[cita.email] = {
-                        nombre: cita.nombre,
-                        email: cita.email,
-                        telefono: cita.telefono,
-                        citas: []
-                    };
-                }
-                pacientes[cita.email].citas.push(cita);
-            });
-
-            const patientsList = document.querySelector('.patients-list');
-            patientsList.innerHTML = Object.values(pacientes).length
-                ? `<div class="patients-grid">
-                    ${Object.values(pacientes).map(paciente => {
-                        const iniciales = paciente.nombre
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')
-                            .toUpperCase()
-                            .slice(0, 2);
-
-                        const citasConfirmadas = paciente.citas.filter(c => c.estado === 'confirmada').length;
-                        const citasPendientes = paciente.citas.filter(c => c.estado === 'pendiente').length;
-                        const citasCanceladas = paciente.citas.filter(c => c.estado === 'cancelada').length;
-
-                        return `
-                        <div class="patient-card">
-                            <div class="patient-header">
-                                <div class="patient-avatar">${iniciales}</div>
-                                <div class="patient-info">
-                                    <h3>${paciente.nombre}</h3>
-                                    <small>${paciente.email}</small>
-                                </div>
-                            </div>
-
-                            <div class="patient-contact">
-                                <p><i class="fas fa-envelope"></i> ${paciente.email}</p>
-                                <p><i class="fas fa-phone"></i> ${paciente.telefono}</p>
-                            </div>
-
-                            <div class="patient-stats">
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasConfirmadas}</div>
-                                    <div class="stat-label">Confirmadas</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasPendientes}</div>
-                                    <div class="stat-label">Pendientes</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value">${citasCanceladas}</div>
-                                    <div class="stat-label">Canceladas</div>
-                                </div>
-                            </div>
-
-                            <div class="patient-appointments">
-                                <h4>Últimas citas:</h4>
-                                <ul class="appointment-history">
-                                    ${paciente.citas.slice(-3).map(cita => `
-                                        <li>
-                                            <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                            <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                        </li>
-                                    `).join('')}
-                                </ul>
-                            </div>
-
-                            <div class="patient-actions" style="margin-top: 1rem; text-align: right;">
-                                <button class="btn-edit-patient" data-email="${paciente.email}">
-                                    <i class="fas fa-edit"></i> Editar
-                                </button>
-                            </div>
-                        </div>
-                        `;
-                    }).join('')}
-                </div>`
-                : '<p>No hay pacientes registrados</p>';
-        } catch (error) {
-            console.error('Error al cargar los pacientes:', error);
-        }
-    }
+    // ...existing code...
 
     // Función para calcular la edad
     function calcularEdad(fechaNacimiento) {
@@ -393,19 +306,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const newPhone = patientCard.querySelector('.edit-phone').value;
         const newRut = patientCard.querySelector('.edit-rut').value;
         const newBirthdate = patientCard.querySelector('.edit-birthdate').value;
-        
-        // Aquí iría la lógica para guardar en la base de datos
-        // Por ahora solo actualizamos la interfaz
-        
-        // Actualizar los datos en la tarjeta
-        patientCard.querySelector('.patient-name').textContent = capitalizarNombre(newName);
-        patientCard.querySelector('.patient-email').textContent = newEmail;
-        patientCard.querySelector('.patient-phone').textContent = newPhone;
-        patientCard.querySelector('.patient-rut').textContent = newRut;
-        patientCard.querySelector('.patient-age').textContent = calcularEdad(newBirthdate);
-        
-        // Ocultar el formulario
-        toggleEditMode(patientId);
+
+        // Guardar en la base de datos Supabase
+        (async () => {
+            try {
+                const { error } = await supabase
+                    .from('pacientes')
+                    .update({
+                        nombre: newName,
+                        email: newEmail,
+                        telefono: newPhone,
+                        rut: newRut,
+                        fecha_nacimiento: newBirthdate
+                    })
+                    .eq('id', patientId);
+                if (error) throw error;
+
+                // Ocultar el formulario
+                toggleEditMode(patientId);
+                mostrarNotificacion('Paciente actualizado correctamente', 'success');
+                // Recargar la lista de pacientes desde la base de datos para reflejar los cambios
+                await cargarPacientes();
+            } catch (err) {
+                mostrarNotificacion('Error al actualizar el paciente: ' + (err.message || err), 'error');
+            }
+        })();
     }
 
     // Eliminar paciente
@@ -458,10 +383,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     .toUpperCase()
                     .slice(0, 2);
 
-                // Contar citas por estado - verificar si tiene citas
+                // Contar citas por estado (todas las citas, no solo futuras)
                 const citasConfirmadas = paciente.citas ? paciente.citas.filter(c => c.estado === 'confirmada').length : 0;
                 const citasPendientes = paciente.citas ? paciente.citas.filter(c => c.estado === 'pendiente').length : 0;
                 const citasCanceladas = paciente.citas ? paciente.citas.filter(c => c.estado === 'cancelada').length : 0;
+
+                // Mostrar todas las citas relacionadas (ordenadas de más reciente a más antigua)
+                let historialCitas = '';
+                if (paciente.citas && paciente.citas.length > 0) {
+                    // Ordenar por fecha descendente y hora descendente
+                    const citasOrdenadas = [...paciente.citas].sort((a, b) => {
+                        if (a.fecha === b.fecha) {
+                            return b.hora.localeCompare(a.hora);
+                        }
+                        return b.fecha.localeCompare(a.fecha);
+                    });
+                    historialCitas = citasOrdenadas.map(cita => `
+                        <li>
+                            <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                            <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                        </li>
+                    `).join('');
+                } else {
+                    historialCitas = '<li>No hay citas registradas</li>';
+                }
 
                 return `
                 <div class="patient-card" data-id="${paciente.id}">
@@ -474,9 +419,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             <small>Paciente #${idx + 1}</small>
                         </div>
                         <div class="patient-actions">
-                            <button class="btn-edit-patient" data-email="${paciente.email}">
-                                <i class="fas fa-edit"></i> Editar
-                            </button>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; width:100%;">
+                                <button class="btn-edit-patient patient-action-btn" data-rut="${paciente.rut}" style="background:#2196f3; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:1rem; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background 0.2s; min-width:110px; min-height:38px;">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn-delete-patient patient-action-btn" data-rut="${paciente.rut}" style="background:#e74c3c; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:1rem; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background 0.2s; min-width:110px; min-height:38px;">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="patient-contact">
@@ -498,36 +448,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         </p>
                     </div>
                     <div class="patient-stats">
-                        <div class="stat-item">
-                            <div class="stat-value">${citasConfirmadas}</div>
-                            <div class="stat-label">Confirmadas</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${citasPendientes}</div>
-                            <div class="stat-label">Pendientes</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${citasCanceladas}</div>
-                            <div class="stat-label">Canceladas</div>
+                        <div style="display:flex; justify-content:center; align-items:stretch; gap:0; width:100%; max-width:100%; box-sizing:border-box; padding:0px 0 4px 0; background:#f8f9fa; border-radius:0; margin:0;">
+                            <div class="stat-item" style="flex:1.1; min-width:0; text-align:center; padding:0 5px;">
+                                <div class="stat-value" style="font-size:1rem; font-weight:600; color:#222;">${citasConfirmadas}</div>
+                                <div class="stat-label" style="font-size:0.7rem; color:#555; white-space:normal; word-break:break-word;">CONFIRMADAS</div>
+                            </div>
+                            <div class="stat-item" style="flex:1; min-width:0; text-align:center; padding:0 2px;">
+                                <div class="stat-value" style="font-size:1rem; font-weight:600; color:#222;">${citasPendientes}</div>
+                                <div class="stat-label" style="font-size:0.7rem; color:#555; white-space:normal; word-break:break-word;">PENDIENTES</div>
+                            </div>
+                            <div class="stat-item" style="flex:1; min-width:0; text-align:center; padding:0 2px;">
+                                <div class="stat-value" style="font-size:1rem; font-weight:600; color:#222;">${citasCanceladas}</div>
+                                <div class="stat-label" style="font-size:0.7rem; color:#555; white-space:normal; word-break:break-word;">CANCELADAS</div>
+                            </div>
                         </div>
                     </div>
                     <div class="patient-appointments">
-                        <h4>Últimas citas:</h4>
+                        <h4>Historial de citas:</h4>
                         <ul class="appointment-history">
-                            ${paciente.citas && paciente.citas.length > 0 ? 
-                                paciente.citas.slice(-3).map(cita => `
-                                    <li>
-                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                    </li>
-                                `).join('') : 
-                                '<li>No hay citas registradas</li>'
-                            }
+                            ${historialCitas}
                         </ul>
                     </div>
-                    
                     <!-- Formulario de edición (oculto inicialmente) -->
-                    <div class="edit-form" id="edit-form-${paciente.id}" style="display: none;">
+                    <form class="edit-form" id="edit-form-${paciente.id}" style="display: none;">
                         <div class="form-group">
                             <label>Nombre:</label>
                             <input type="text" class="edit-name" value="${paciente.nombre}">
@@ -549,22 +492,77 @@ document.addEventListener('DOMContentLoaded', () => {
                             <input type="date" class="edit-birthdate" value="${paciente.fecha_nacimiento || ''}">
                         </div>
                         <div class="form-actions">
-                            <button class="save-btn" onclick="savePatient('${paciente.id}')">
+                            <button type="submit" class="save-btn">
                                 <i class="fas fa-save"></i> Guardar
                             </button>
-                            <button class="cancel-btn" onclick="cancelEdit('${paciente.id}')">
+                            <button type="button" class="cancel-btn" onclick="cancelEdit('${paciente.id}')">
                                 <i class="fas fa-times"></i> Cancelar
                             </button>
-                            <button class="delete-btn" onclick="deletePatient('${paciente.id}')">
+                            <button type="button" class="delete-btn" onclick="deletePatient('${paciente.id}')">
                                 <i class="fas fa-trash"></i> Eliminar
                             </button>
                         </div>
-                    </div>
+                    </form>
                 </div>
-            `}).join('')}
+                `;
+            }).join('')}
         </div>`
         : '<p>No hay pacientes registrados</p>';
-    }
+
+    // Agregar event listener para submit a cada formulario de edición (tarjetas)
+    pacientes.forEach(paciente => {
+        const form = document.getElementById(`edit-form-${paciente.id}`);
+        if (form) {
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                savePatient(paciente.id);
+            };
+        }
+        // Botón eliminar paciente
+        const btnDelete = document.querySelector(`.btn-delete-patient[data-rut='${paciente.rut}']`);
+        if (btnDelete) {
+            btnDelete.onclick = async function() {
+                if (!confirm('¿Estás seguro que deseas eliminar este paciente? Esta acción no se puede deshacer.')) return;
+                btnDelete.disabled = true;
+                btnDelete.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+                try {
+                    const { error } = await supabase
+                        .from('pacientes')
+                        .delete()
+                        .eq('rut', paciente.rut);
+                    if (error) throw error;
+                    mostrarNotificacion('Paciente eliminado correctamente', 'success');
+                    await cargarPacientes();
+                } catch (err) {
+                    mostrarNotificacion('Error al eliminar el paciente: ' + (err.message || err), 'error');
+                } finally {
+                    btnDelete.disabled = false;
+                    btnDelete.innerHTML = '<i class="fas fa-trash"></i> Eliminar';
+                }
+            };
+        }
+    });
+}
+
+// Función para abrir el modal de edición y rellenar datos
+function abrirModalEditarPaciente(paciente) {
+    document.getElementById('editarNombre').value = paciente.nombre || '';
+    document.getElementById('editarEmail').value = paciente.email || '';
+    document.getElementById('editarTelefono').value = paciente.telefono || '';
+    // Guardar el id en el form para usarlo al guardar
+    document.getElementById('formEditarPaciente').dataset.pacienteId = paciente.id;
+    document.getElementById('modalEditarPaciente').style.display = 'flex';
+}
+
+// Función para cerrar el modal de edición
+function cerrarModalEditarPaciente() {
+    document.getElementById('modalEditarPaciente').style.display = 'none';
+}
+
+// Hacer global para que pueda llamarse desde el botón Editar
+window.abrirModalEditarPaciente = abrirModalEditarPaciente;
+window.cerrarModalEditarPaciente = cerrarModalEditarPaciente;
+    
 
     // Función para inicializar el calendario
     function inicializarCalendario() {
@@ -772,6 +770,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Hacer global para que pueda llamarse desde otros lugares (como guardarCambiosModalEditarPaciente)
+    window.cargarPacientes = cargarPacientes;
     // Agregar evento de búsqueda (mejorado para incluir RUT)
     const searchInput = document.getElementById('searchPaciente');
     if (searchInput) {
@@ -1738,84 +1738,88 @@ function cerrarModalEditarPaciente() {
     document.getElementById('modalEditarPaciente').style.display = 'none';
 }
 
-function abrirModalEditarPaciente(paciente) {
-    document.getElementById('editarNombre').value = paciente.nombre;
-    document.getElementById('editarEmail').value = paciente.email;
-    document.getElementById('editarTelefono').value = paciente.telefono;
+// Abre el modal de edición y rellena los datos desde la tabla 'pacientes' usando el RUT
+async function abrirModalEditarPacientePorRut(rut) {
+    // Buscar paciente por rut en la tabla 'pacientes'
+    const { data, error } = await supabase
+        .from('pacientes')
+        .select('*')
+        .eq('rut', rut)
+        .single();
+    if (error || !data) {
+        mostrarNotificacion('Error al cargar datos del paciente', 'error');
+        return;
+    }
+    document.getElementById('editarNombre').value = data.nombre;
+    document.getElementById('editarEmail').value = data.email;
+    document.getElementById('editarTelefono').value = data.telefono;
+    // Guardar el rut en el form para usarlo al guardar
+    document.getElementById('formEditarPaciente').dataset.pacienteRut = data.rut;
     document.getElementById('modalEditarPaciente').style.display = 'flex';
 }
 
-// Delegación de eventos para el botón Editar
+// Delegación de eventos para el botón Editar (ahora usa data-rut del paciente)
 document.body.addEventListener('click', async (e) => {
     const editBtn = e.target.closest('.btn-edit-patient');
     if (!editBtn) return;
-
-    const email = editBtn.dataset.email;
-    const { data, error } = await supabase
-        .from('citas')
-        .select('*')
-        .eq('email', email)
-        .order('fecha', { ascending: false })
-        .limit(1);
-
-    if (error || !data.length) {
-        alert('Error al cargar datos del paciente');
+    const pacienteRut = editBtn.dataset.rut;
+    if (!pacienteRut) {
+        mostrarNotificacion('No se encontró el RUT del paciente', 'error');
         return;
     }
-
-    abrirModalEditarPaciente(data[0]);
+    abrirModalEditarPacientePorRut(pacienteRut);
 });
 
-// Guardar cambios del paciente
-document.getElementById('formEditarPaciente').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
+// Guardar cambios del paciente (modal, usando RUT)
+async function guardarCambiosModalEditarPaciente(event) {
+    event.preventDefault();
     const nombre = document.getElementById('editarNombre').value.trim();
     const email = document.getElementById('editarEmail').value.trim();
     const telefono = document.getElementById('editarTelefono').value.trim();
-
-    const btnGuardar = e.target.querySelector('.btn-confirmar');
+    const pacienteRut = document.getElementById('formEditarPaciente').dataset.pacienteRut;
+    const btnGuardar = event.target.querySelector('.btn-confirmar');
     btnGuardar.disabled = true;
     btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
-
     if (!nombre || !telefono) {
-        alert('Todos los campos son obligatorios');
+        mostrarNotificacion('Todos los campos son obligatorios', 'error');
         btnGuardar.disabled = false;
         btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
         return;
     }
-
+    if (!pacienteRut) {
+        mostrarNotificacion('No se encontró el paciente a editar', 'error');
+        btnGuardar.disabled = false;
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+        return;
+    }
     try {
         const { error } = await supabase
-            .from('citas')
+            .from('pacientes')
             .update({ nombre, telefono })
-            .eq('email', email);
-
-        if (error) {
-            alert('Error al guardar los cambios en la base de datos');
-            console.error(error);
-        } else {
-            cerrarModalEditarPaciente();
-            mostrarNotificacion('Paciente actualizado correctamente', 'success');
-
-            // Recargar pacientes
-            cargarPacientes();
-
-            // Si el dashboard está activo, actualizarlo también
-            if (document.getElementById('dashboard').classList.contains('active')) {
-                cargarDashboard();
-            }
-
-            // Si las citas están activas, recargarlas también
-            if (document.getElementById('appointments').classList.contains('active')) {
-                cargarCitas();
-            }
+            .eq('rut', pacienteRut);
+        if (error) throw error;
+        mostrarNotificacion('Paciente actualizado correctamente', 'success');
+        cerrarModalEditarPaciente();
+        await cargarPacientes();
+        // Si el dashboard está activo, actualizarlo también
+        if (document.getElementById('dashboard').classList.contains('active')) {
+            cargarDashboard();
+        }
+        // Si las citas están activas, recargarlas también
+        if (document.getElementById('appointments').classList.contains('active')) {
+            cargarCitas();
         }
     } catch (err) {
-        console.error('Error inesperado:', err);
-        alert('Error inesperado al guardar cambios.');
+        mostrarNotificacion('Error al actualizar el paciente: ' + (err.message || err), 'error');
     }
-
     btnGuardar.disabled = false;
     btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar Cambios';
+}
+
+// Enlazar el submit del formulario del modal al cargar el DOM
+document.addEventListener('DOMContentLoaded', () => {
+    const formEditar = document.getElementById('formEditarPaciente');
+    if (formEditar) {
+        formEditar.onsubmit = guardarCambiosModalEditarPaciente;
+    }
 });
