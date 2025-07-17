@@ -419,9 +419,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             <small>Paciente #${idx + 1}</small>
                         </div>
                         <div class="patient-actions">
-                            <button class="btn-edit-patient" data-rut="${paciente.rut}">
-                                <i class="fas fa-edit"></i> Editar
-                            </button>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; width:100%;">
+                                <button class="btn-edit-patient patient-action-btn" data-rut="${paciente.rut}" style="background:#2196f3; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:1rem; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background 0.2s; min-width:110px; min-height:38px;">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn-delete-patient patient-action-btn" data-rut="${paciente.rut}" style="background:#e74c3c; color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:1rem; font-weight:500; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:background 0.2s; min-width:110px; min-height:38px;">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="patient-contact">
@@ -509,6 +514,29 @@ document.addEventListener('DOMContentLoaded', () => {
             form.onsubmit = function(e) {
                 e.preventDefault();
                 savePatient(paciente.id);
+            };
+        }
+        // Botón eliminar paciente
+        const btnDelete = document.querySelector(`.btn-delete-patient[data-rut='${paciente.rut}']`);
+        if (btnDelete) {
+            btnDelete.onclick = async function() {
+                if (!confirm('¿Estás seguro que deseas eliminar este paciente? Esta acción no se puede deshacer.')) return;
+                btnDelete.disabled = true;
+                btnDelete.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+                try {
+                    const { error } = await supabase
+                        .from('pacientes')
+                        .delete()
+                        .eq('rut', paciente.rut);
+                    if (error) throw error;
+                    mostrarNotificacion('Paciente eliminado correctamente', 'success');
+                    await cargarPacientes();
+                } catch (err) {
+                    mostrarNotificacion('Error al eliminar el paciente: ' + (err.message || err), 'error');
+                } finally {
+                    btnDelete.disabled = false;
+                    btnDelete.innerHTML = '<i class="fas fa-trash"></i> Eliminar';
+                }
             };
         }
     });
