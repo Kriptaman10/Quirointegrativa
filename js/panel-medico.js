@@ -224,9 +224,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Función para cargar la lista de citas
     async function cargarCitas() {
         try {
+            // Obtener la fecha y hora actual en formato compatible con la base de datos
+            const now = new Date();
+            const today = now.toISOString().slice(0, 10); // yyyy-mm-dd
+            const currentTime = now.toTimeString().slice(0, 5); // HH:MM
+
+            // Traer solo citas de hoy en adelante, y si es hoy, solo las que no han pasado
             const { data: citas, error } = await supabase
                 .from('citas')
                 .select('*')
+                .or(`fecha.gt.${today},and(fecha.eq.${today},hora.gte.${currentTime})`)
                 .order('fecha', { ascending: true })
                 .order('hora', { ascending: true })
 
@@ -376,10 +383,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     .toUpperCase()
                     .slice(0, 2);
 
-                // Contar citas por estado - verificar si tiene citas
+                // Contar citas por estado (todas las citas, no solo futuras)
                 const citasConfirmadas = paciente.citas ? paciente.citas.filter(c => c.estado === 'confirmada').length : 0;
                 const citasPendientes = paciente.citas ? paciente.citas.filter(c => c.estado === 'pendiente').length : 0;
                 const citasCanceladas = paciente.citas ? paciente.citas.filter(c => c.estado === 'cancelada').length : 0;
+
+                // Mostrar todas las citas relacionadas (ordenadas de más reciente a más antigua)
+                let historialCitas = '';
+                if (paciente.citas && paciente.citas.length > 0) {
+                    // Ordenar por fecha descendente y hora descendente
+                    const citasOrdenadas = [...paciente.citas].sort((a, b) => {
+                        if (a.fecha === b.fecha) {
+                            return b.hora.localeCompare(a.hora);
+                        }
+                        return b.fecha.localeCompare(a.fecha);
+                    });
+                    historialCitas = citasOrdenadas.map(cita => `
+                        <li>
+                            <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
+                            <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
+                        </li>
+                    `).join('');
+                } else {
+                    historialCitas = '<li>No hay citas registradas</li>';
+                }
 
                 return `
                 <div class="patient-card" data-id="${paciente.id}">
@@ -430,20 +457,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     <div class="patient-appointments">
-                        <h4>Últimas citas:</h4>
+                        <h4>Historial de citas:</h4>
                         <ul class="appointment-history">
-                            ${paciente.citas && paciente.citas.length > 0 ? 
-                                paciente.citas.slice(-3).map(cita => `
-                                    <li>
-                                        <span class="appointment-date">${cita.fecha} - ${cita.hora}</span>
-                                        <span class="appointment-status status-${cita.estado}">${cita.estado}</span>
-                                    </li>
-                                `).join('') : 
-                                '<li>No hay citas registradas</li>'
-                            }
+                            ${historialCitas}
                         </ul>
                     </div>
-                    
                     <!-- Formulario de edición (oculto inicialmente) -->
                     <form class="edit-form" id="edit-form-${paciente.id}" style="display: none;">
                         <div class="form-group">
@@ -479,7 +497,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </form>
                 </div>
-            `}).join('')}
+                `;
+            }).join('')}
         </div>`
         : '<p>No hay pacientes registrados</p>';
 
