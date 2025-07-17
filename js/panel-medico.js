@@ -1823,3 +1823,72 @@ document.addEventListener('DOMContentLoaded', () => {
         formEditar.onsubmit = guardarCambiosModalEditarPaciente;
     }
 });
+
+document.addEventListener("DOMContentLoaded", async () => {
+    const btnAgregarCita = document.getElementById("btn-agregar-cita");
+    const opcionesPaciente = document.getElementById("opciones-paciente");
+    const btnPacienteNuevo = document.getElementById("btn-paciente-nuevo");
+    const btnSeleccionarPaciente = document.getElementById("btn-seleccionar-paciente");
+    const listadoPacientes = document.getElementById("listado-pacientes-existentes");
+    const pacientesDisponibles = document.getElementById("pacientes-disponibles");
+    const formularioCita = document.getElementById("formulario-cita");
+
+    btnAgregarCita.addEventListener("click", () => {
+        opcionesPaciente.style.display = "block";
+        formularioCita.style.display = "none";
+        listadoPacientes.style.display = "none";
+    });
+
+    btnPacienteNuevo.addEventListener("click", () => {
+        formularioCita.style.display = "block";
+        listadoPacientes.style.display = "none";
+        opcionesPaciente.style.display = "none";
+        document.getElementById("form-agendar-cita").reset();
+    });
+
+    btnSeleccionarPaciente.addEventListener("click", async () => {
+        listadoPacientes.style.display = "block";
+        formularioCita.style.display = "none";
+        opcionesPaciente.style.display = "none";
+        cargarPacientes();
+    });
+
+    async function cargarPacientes() {
+        const { data: pacientes, error } = await supabaseClient
+            .from("pacientes")
+            .select("*")
+            .order("nombre", { ascending: true });
+
+        if (error) {
+            console.error("Error al cargar pacientes:", error.message);
+            return;
+        }
+
+        pacientesDisponibles.innerHTML = "";
+
+        pacientes.forEach(p => {
+            const item = document.createElement("li");
+            item.classList.add("paciente-item");
+            item.textContent = `${p.nombre} (${p.rut})`;
+            item.style.cursor = "pointer";
+            item.addEventListener("click", () => {
+                llenarFormularioConPaciente(p);
+            });
+            pacientesDisponibles.appendChild(item);
+        });
+    }
+
+    function llenarFormularioConPaciente(paciente) {
+        document.getElementById("nombre-paciente").value = paciente.nombre || "";
+        document.getElementById("telefono-paciente").value = paciente.telefono || "";
+        document.getElementById("email-paciente").value = paciente.email || "";
+        document.getElementById("rut-paciente").value = paciente.rut || "";
+        document.getElementById("fecha-nacimiento-paciente").value = paciente.fecha_nacimiento || "";
+        // Deja los campos fecha/hora vacíos
+        document.getElementById("fecha-cita").value = "";
+        document.getElementById("hora-cita").value = "";
+
+        listadoPacientes.style.display = "none";
+        formularioCita.style.display = "block";
+    }
+});
