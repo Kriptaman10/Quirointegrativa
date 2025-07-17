@@ -1278,3 +1278,6 @@ body.modal-open {
 #modalEditarPaciente .btn-cancelar:hover {
     background-color: #d6d8db;
 }
+.paciente-item:hover {
+    background-color: #f0f0f0;
+}
